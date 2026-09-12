@@ -1,4 +1,4 @@
-# nu-sx
+# nu-sx.github.io
 
 日本大学 理工学部（理工学研究所）**宇宙科学研究ユニット NU-SX** が公開する Web デモのサイト。
 
@@ -15,14 +15,10 @@
 
 ## 公開URL
 
-このリポジトリは個人アカウント配下のため **プロジェクトサイト** として公開される。
+Organization `nu-sx` 配下の `<org>.github.io` なので、**組織サイト**としてルート URL で公開される。
 
-- サイト表紙 … `https://avellsky.github.io/nu-sx/`
-- NU-SORA デモ … `https://avellsky.github.io/nu-sx/nu-sora/`
-
-`https://nu-sx.github.io/` という短い URL で公開したい場合は、GitHub の **Organization** を `nu-sx` という名前で作成し、
-その Organization 配下に `nu-sx.github.io` という名前でこのリポジトリを移管（Settings → Transfer ownership）する。
-Organization 配下の `<org>.github.io` は組織サイトとして扱われ、ルート URL で公開される。
+- サイト表紙 … `https://nu-sx.github.io/`
+- NU-SORA デモ … `https://nu-sx.github.io/nu-sora/`
 
 ## 構成
 
@@ -42,7 +38,7 @@ nu-sora/                  NU-SORA 観測ポータル デモ版（ビルド不要
 GitHub Pages の **Deploy from a branch** で公開する。ビルド工程を持たない素の静的サイトなので、
 Actions を経由せず `main` ブランチの内容をそのまま配信するのが最も確実で、以後は push するだけで反映される。
 
-初回のみ、リポジトリの設定を 1 か所変更する（`https://github.com/avellsky/nu-sx/settings/pages`）。
+初回のみ、リポジトリの設定を 1 か所変更する（`https://github.com/nu-sx/nu-sx.github.io/settings/pages`）。
 
 | 項目 | 設定値 |
 |---|---|

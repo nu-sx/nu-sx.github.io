@@ -336,7 +336,7 @@ function fireballBoso() {
 
 function reentryDemo() {
   var t = NS.night(6, 4, 12, 36, 900);
-  var lc = NS.makeLightcurve({ seed:'RE-DEMO', dur:38.4, beginMag:1.5, peakMag:-8.2, peakAt:0.48,
+  var lc = NS.makeLightcurve({ seed:'RE-DEMO', dur:196.9, beginMag:1.5, peakMag:-8.2, peakAt:0.48,
     flares:[{ at:0.31, amp:1.8, w:0.012 }, { at:0.46, amp:2.6, w:0.010 }, { at:0.58, amp:2.1, w:0.011 }, { at:0.71, amp:1.4, w:0.014 }] });
   var ErJ = NS.integrateEr(lc);
   var det = [
@@ -348,18 +348,22 @@ function reentryDemo() {
     { id:'OGK', mag:-6.9, elev:21.8, snr: 61, swir:false, infra:null }
   ];
   return {
-    id:'NUS-RE-2028-0704-02', kind:'reentry', t:t, name:'低軌道通信衛星の制御外再突入',
-    objName:'デモ衛星 A（NORAD 仮 ID 99214 / COSPAR 2024-DEMO-A）',
-    summary:'公開軌道要素からの再突入予報（予報窓 ±32 分）に対し、実際の発光を 6 局で捉えた事例。経路角 1.4°・速度 7.6 km/s・継続 38 秒という自然火球と明確に異なる突入条件を示し、分光で Al・Cu・Li を検出した。',
-    absMag:-8.2, dur:38.4, stationsDet:6, stationsFov:7, lightcurve:lc,
-    begin:{ lat:34.05, lon:139.92, alt:78.4 }, end:{ lat:35.28, lon:137.10, alt:41.2 },
-    vInf:7.62, entryAngle:1.42, azimuth:298.6, ErJ:ErJ, ErKt:ErJ / NS.KT_J,
+    id:'NUS-RE-2028-0704-02', kind:'reentry', t:t, name:'太陽同期軌道の地球観測衛星の制御外再突入',
+    objName:'デモ衛星 A（NORAD 仮 ID 99214 / COSPAR 2024-DEMO-A・太陽同期軌道）',
+    summary:'公開軌道要素からの再突入予報（予報窓 ±32 分）に対し、実際の発光を 6 局で捉えた事例。'
+      + '三陸沖から小笠原の北へ、日本列島の東を南南西へ約 1,500 km なぞる経路で、'
+      + '経路角 1.42°・速度 7.6 km/s・継続 3 分 17 秒という自然火球と明確に異なる突入条件を示した。'
+      + '軌跡の向きと緯度から求めた軌道傾斜角は 97.4° で、地球観測衛星が使う太陽同期軌道にあたる。'
+      + '分光では Al・Cu・Li を検出した。',
+    absMag:-8.2, dur:196.9, stationsDet:6, stationsFov:7, lightcurve:lc,
+    begin:{ lat:41.80, lon:142.60, alt:78.4 }, end:{ lat:28.48, lon:139.96, alt:41.2 },
+    vInf:7.62, entryAngle:1.42, azimuth:190.0, ErJ:ErJ, ErKt:ErJ / NS.KT_J,
     objMass:264, objArea:'太陽電池パドル 2 翼 / 本体 1.1 × 0.8 × 0.6 m',
     predict:{ issued:-9.6, windowMin:32, srcTLE:'2028-07-03T14:22Z 元期', errKm:640, errMin:11.4 },
-    frag:[ { t:11.9, alt:69.1, n:2,  note:'パドル分離（主フレア −6.4 等）' },
-           { t:17.6, alt:63.4, n:5,  note:'本体分裂（最大フレア −8.2 等）' },
-           { t:22.3, alt:57.8, n:9,  note:'二次分裂・尾を引く破片列' },
-           { t:27.2, alt:51.2, n:14, note:'減光しつつ破片が分散' } ],
+    frag:[ { t:61.0,  alt:66.9, n:2,  note:'パドル分離（主フレア −6.4 等）' },
+           { t:90.2,  alt:61.4, n:5,  note:'本体分裂（最大フレア −8.2 等）' },
+           { t:114.4, alt:56.8, n:9,  note:'二次分裂・尾を引く破片列' },
+           { t:139.4, alt:52.1, n:14, note:'減光しつつ破片が分散' } ],
     swirObs:{ stations:['FNB'], band:'1.2–1.6 µm', tempK:2118, tempErr:140,
       note:'可視・近赤外・SWIR の三波長帯の強度比から破片表面温度を推定。アルミ合金の融点（約 930 K）を大きく超え、酸化アルミの気化領域に達している。' },
     ablation:{ totalKg:214, alKg:68.3, cuKg:5.1, liKg:0.42, other:'Ti・Nb・Hf 微量',
@@ -802,12 +806,12 @@ function routineEvents() {
    観測から求まるのは軌道傾斜角・周期・速度で、そこへ公開カタログを突き合わせて物体を絞る。
    下は本デモ用の仮想の物体で、実在の衛星ではない。 */
 NS.DEBRIS_CANDIDATES = [
-  { name:'デモ衛星 A', norad:'99214', cospar:'2024-DEMO-A', inc:136.3, alt:172, mass:264,
-    type:'通信衛星', tOff:11.4 },
+  { name:'デモ衛星 A', norad:'99214', cospar:'2024-DEMO-A', inc:97.4, alt:172, mass:264,
+    type:'地球観測衛星（太陽同期軌道）', tOff:11.4 },
   { name:'デモ衛星 B', norad:'99331', cospar:'2023-DEMO-C', inc: 51.6, alt:198, mass:1180,
     type:'通信衛星（第2世代）', tOff:-36.2 },
-  { name:'デモ上段 C', norad:'99418', cospar:'2026-DEMO-B', inc: 97.4, alt:154, mass:920,
-    type:'ロケット上段', tOff:64.8 },
+  { name:'デモ上段 C', norad:'99418', cospar:'2026-DEMO-B', inc: 97.9, alt:154, mass:920,
+    type:'ロケット上段（太陽同期軌道）', tOff:64.8 },
   { name:'デモ衛星 D', norad:'99502', cospar:'2025-DEMO-F', inc: 62.5, alt:210, mass:260,
     type:'地球観測衛星', tOff:-88.1 },
   { name:'デモ破片 E', norad:'99677', cospar:'2019-DEMO-K', inc: 22.8, alt:141, mass:45,
@@ -842,7 +846,6 @@ NS.infraGeom = function (e, cel0) {
   if (!e || !e.det || !e.begin || !e.end) return e;
   var N = 80;
   e.det.forEach(function (d) {
-    if (!d.infra) return;
     var st = NS.ST[d.id], best = null;
     for (var i = 0; i <= N; i++) {
       var f = i / N;
@@ -853,6 +856,10 @@ NS.infraGeom = function (e, cel0) {
       var r = Math.sqrt(g * g + al * al);
       if (!best || r < best.r) best = { r:r, g:g, lat:la, lon:lo, alt:al, f:f };
     }
+    /* いちばん近い点を見込む仰角。局からの見えかたはこれで決まる。 */
+    d.elev = Math.round(Math.atan2(best.alt, best.g) * NS.r2d * 10) / 10;
+    d.dist = Math.round(best.r);
+    if (!d.infra) return;
     var c = (cel0 || 0.300) * (1 + (NS.rng('cel' + e.id + d.id)() - 0.5) * 0.08);
     d.infra.dt = Math.round(best.r / c * 10) / 10;
     d.infra.az = Math.round(NS.bearing(st.lat, st.lon, best.lat, best.lon) * 10) / 10;
@@ -902,7 +909,7 @@ NS.alertLog = function () {
       text:'船橋局でインフラサウンド到達を確認。音響エネルギー推定値が光学推定と 2 倍以内で整合' },
     { t:fb.t + 1830e3,        lvl:'対応',   ev:fb.id, text:'山武市より「被害報告なし」の回答。翌朝から回収捜索を開始（UAV 2 機・地上班 6 名）' },
     { t:re.t - 9.6 * 3600e3,  lvl:'予報',   ev:re.id, text:'公開軌道要素から再突入予報を発出（予報窓 ±32 分、日本上空通過の可能性 62 %）' },
-    { t:re.t,                 lvl:'検出',   ev:re.id, text:'6 局で再突入発光を検出。経路角 1.4°・継続 38 秒から人工物と即時判定' },
+    { t:re.t,                 lvl:'検出',   ev:re.id, text:'6 局で再突入発光を検出。経路角 1.4°・継続 3 分 17 秒から人工物と即時判定' },
     { t:re.t + 412e3,         lvl:'共有',   ev:re.id, text:'JAXA 宇宙状況把握（SSA）へ観測結果を共有。予報誤差 11.4 分 / 640 km を報告' },
     { t:now - 31 * 3600e3 + 240e3, lvl:'注意喚起', ev:'NUS-IS-T-0118', text:'線状降水帯に伴う雷放電群を検知。関東 5 校へ屋外活動の中止を推奨（検知から 4 分）' },
     { t:now - 4.2 * 86400e3 + 900e3, lvl:'判定', ev:'NUS-IS-Q-0106', text:'地震後の校舎固有振動数チェックを 3 局で自動実施。いずれも「継続使用可」' },

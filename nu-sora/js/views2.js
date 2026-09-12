@@ -840,13 +840,13 @@ NS.V.reentry = function (root, go, arg) {
 
   NS.add(root, el('div', { class:'grid g2', style:{ marginTop:'14px' } }, [
     panel('光度曲線（局別）', { note:bal ? '22 秒の発光。急な経路角のため短時間で深く入り、減速が強い区間で最大光度になる'
-                                          : '38 秒にわたる長い発光。4 回の主フレアが破片化に対応' }, [
+                                          : NS.f(e.dur, 0) + ' 秒にわたる長い発光。4 回の主フレアが破片化に対応' }, [
       NS.chart.line({ series:series, width:660, height:250, xLabel:'発光開始からの秒数', yLabel:'絶対等級',
         yDomain:[e.absMag > -7.5 ? 3.2 : 2.6, e.absMag - 1.0], xFmt:function (v) { return NS.f(v, 0) + 's'; }, yFmt:function (v) { return NS.f(v, 0); },
         rules:e.frag.map(function (f) { return { x:f.t, color:'var(--muted)', dash:'2 3' }; }) }),
       NS.chart.legend(series.map(function (x) { return [x.name, x.color, 'line']; })),
       el('div', { class:'note', text:bal ? '自然火球は 0.5〜8 秒、軌道デブリは 20〜120 秒。22 秒という長さは軌道デブリに近いが、経路角 38° と速度 5.9 km/s の組み合わせはどちらとも重ならない。急な経路角では大気の密度が急に増すため、光度曲線の立ち上がりが鋭くなる。'
-                                          : '自然火球の継続時間は通常 1〜5 秒。38 秒という長い発光と浅い経路角は、円軌道からの人工天体の再突入に特有である。' })
+                                          : '自然火球の継続時間は通常 1〜5 秒。' + NS.f(e.dur, 0) + ' 秒という長い発光と浅い経路角は、円軌道からの人工天体の再突入に特有である。日本列島の東を約 1,500 km なぞる経路で、6 局が同じ事象を別々の方向から捉えている。' })
     ]),
     mp
   ]));
@@ -977,7 +977,7 @@ NS.V.reentry = function (root, go, arg) {
       ['突入速度', '11.2 – 72 km/s', '7.4 – 8.0 km/s', '4 – 7 km/s',
         el('b', { text:NS.f(e.vInf, 2) + ' km/s' })],
       ['経路角', '10 – 80°', '0.5 – 3°', '25 – 50°', el('b', { text:NS.f(e.entryAngle, 1) + '°' })],
-      ['継続時間', '0.5 – 8 秒', '20 – 120 秒', '15 – 40 秒', el('b', { text:NS.f(e.dur, 1) + ' 秒' })],
+      ['継続時間', '0.5 – 8 秒', '20 – 300 秒', '15 – 40 秒', el('b', { text:NS.f(e.dur, 1) + ' 秒' })],
       ['最強の原子線', 'Mg I 518 / Na I 589', 'Al I 394・396', 'Fe I 多重項・Cr I 425–429',
         el('b', { text:bal ? 'Fe I・Cr I → 弾道' : 'Al・Cu・Li → 衛星' })],
       ['分子バンド', '検出されない', 'AlO・CN・TiO', 'C₂ スワンバンド・CN（強）',

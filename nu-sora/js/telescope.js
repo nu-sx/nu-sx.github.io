@@ -15,16 +15,20 @@ NS.SCOPES = [
   /* 視野は ZWO ASI174MM の公称 5.86 µm 角・1936 × 1216（実寸 11.34 × 7.13 mm）と焦点距離から求めた値 */
   { id:'GDM-P', name:'ガンダム望遠鏡 主鏡', short:'主鏡 400', st:'FNB', ap:400, fl:1520, fr:3.8,
     fovX:0.4276, fovY:0.2686, res:0.795, cam:'ZWO ASI174MM-Cool', px:'1936 × 1216（5.86 µm 角）',
-    lim:{ 1:14.2, 10:16.8, 60:18.4, 300:19.8 }, modes:['lif', 'debris', 'astro'] },
+    lim:{ 1:14.2, 10:16.8, 60:18.4, 300:19.8 }, modes:['lif', 'debris', 'astro'],
+    vid:{ w:1936, h:1216, bit:8, max:128 } },
   { id:'GDM-S', name:'ガンダム望遠鏡 副鏡', short:'副鏡 200', st:'FNB', ap:200, fl:600, fr:3.0,
     fovX:1.0833, fovY:0.6805, res:2.0145, cam:'ZWO ASI174MM-Cool', px:'1936 × 1216（5.86 µm 角）',
-    lim:{ 1:12.6, 10:15.2, 60:16.8, 300:18.2 }, modes:['lif', 'debris', 'astro'] },
+    lim:{ 1:12.6, 10:15.2, 60:16.8, 300:18.2 }, modes:['lif', 'debris', 'astro'],
+    vid:{ w:1936, h:1216, bit:8, max:128 } },
   { id:'DRC-F', name:'Draco 船橋局', short:'Draco 船橋', st:'FNB', ap:90, fl:340, fr:3.8,
     fovX:1.70, fovY:1.30, res:1.5, cam:'1/1.3" 50 MP CMOS', px:'8192 × 6144（ビニングで 4096 × 3072）',
-    lim:{ 1:11.4, 10:14.0, 60:16.2, 300:19.5 }, modes:['astro', 'debris', 'wide'] },
+    lim:{ 1:11.4, 10:14.0, 60:16.2, 300:19.5 }, modes:['astro', 'debris', 'wide'],
+    vid:{ w:1920, h:1080, bit:8, max:60 } },
   { id:'DRC-K', name:'Draco 郡山局（工学部）', short:'Draco 郡山', st:'KYM', ap:90, fl:340, fr:3.8,
     fovX:1.70, fovY:1.30, res:1.5, cam:'1/1.3" 50 MP CMOS', px:'8192 × 6144（ビニングで 4096 × 3072）',
-    lim:{ 1:11.7, 10:14.4, 60:16.6, 300:19.9 }, modes:['astro', 'debris', 'wide'] }
+    lim:{ 1:11.7, 10:14.4, 60:16.6, 300:19.9 }, modes:['astro', 'debris', 'wide'],
+    vid:{ w:1920, h:1080, bit:8, max:60 } }
 ];
 NS.SCOPE_MODES = {
   lif:    { name:'月面衝突閃光', icon:'☾', note:'月の夜側を 60 fps で撮り、動体検出にかける' },
@@ -92,6 +96,27 @@ NS.skyPhoto = function (id, cb) {
   p.img.onerror = function () { p.ok = false; };
   p.img.src = SKY_BASE + 'assets/sky/' + p.file;
   return null;
+};
+
+/* ビデオ録画の諸元。月面衝突閃光は 1 フレームに満たない明滅なので、
+   長時間露出ではなく「速いフレームで録りつづけて差分を取る」のが基本になる。
+   データ量が効くので、画素数・ビット深度・ビニングから記録レートも出しておく。 */
+NS.VID_FPS = [30, 60, 100];
+/* 録画時間の表示（mm:ss.s） */
+NS.vidTime = function (sec) {
+  var m = Math.floor(sec / 60), r = sec - m * 60;
+  return (m < 10 ? '0' : '') + m + ':' + (r < 10 ? '0' : '') + r.toFixed(1);
+};
+NS.vidSpec = function (sc, fps, bin) {
+  var v = sc.vid || { w:1920, h:1080, bit:8, max:60 };
+  var w = Math.round(v.w / (bin || 1)), h = Math.round(v.h / (bin || 1));
+  var mbs = w * h * (v.bit / 8) * fps / 1e6;          /* MB/s（非圧縮） */
+  return { w:w, h:h, bit:v.bit, max:v.max, fps:fps, mbs:mbs,
+           gbMin:mbs * 60 / 1000, ok:fps <= v.max, expMs:1000 / fps };
+};
+/* 動画 1 フレームぶんの限界等級。静止画 1 秒の値から露出比で落とす。 */
+NS.vidLimit = function (sc, fps, gain) {
+  return sc.lim[1] - 2.5 * Math.log(fps) / Math.LN10 + (gain - 100) / 140;
 };
 
 /* ---------------- 視野の描画 ---------------- */
@@ -233,7 +258,8 @@ NS.ScopeView = function (opts) {
   A.draw = function (S) {
     A._S = S;
     var sc = S.scope, tg = S.target, exp = S.exp, gain = S.gain;
-    var lim = (sc.lim[exp] || sc.lim[300]) + (gain - 100) / 140;
+    var lim = (S.rec && S.rec.on) ? NS.vidLimit(sc, S.rec.fps, gain)
+                                  : (sc.lim[exp] || sc.lim[300]) + (gain - 100) / 140;
     ctx.clearRect(0, 0, W, H);
     /* 背景（空の明るさに応じたかぶり） */
     /* lum は空の明るさ（かぶり）。外側の bg（裏画面）と名前が衝突しないようにする。 */
@@ -580,7 +606,9 @@ NS.ScopeView = function (opts) {
     ctx.font = '10px ui-monospace, monospace'; ctx.fillStyle = 'rgba(226,232,242,0.92)';
     ctx.fillText(sc.id + '  ' + NS.fmtJST(S.t, { sec:true }) + (S.live ? '' : ' ' + NS.t('（再現）')), 18, 20);
     ctx.fillStyle = 'rgba(200,212,230,0.72)';
-    ctx.fillText(S.exp + ' s × ' + S.frames + '  gain ' + S.gain + '  bin' + S.bin +
+    var recOn = S.rec && S.rec.on, vs = recOn ? NS.vidSpec(sc, S.rec.fps, S.bin) : null;
+    ctx.fillText((recOn ? '1/' + S.rec.fps + ' s × ' + S.rec.fps + ' fps' : S.exp + ' s × ' + S.frames)
+                 + '  gain ' + S.gain + '  bin' + S.bin +
                  (S.filter !== 'none' ? '  ' + S.filter : ''), 18, 34);
     ctx.fillText(NS.t('限界等級') + ' ' + f(lim, 1) + '  ' + NS.t('視野') + ' ' +
                  (S.mode === 'wide' ? '85.7° × 64.3°' : f(sc.fovX, 2) + '° × ' + f(sc.fovY, 2) + '°'), 18, 48);
@@ -593,8 +621,24 @@ NS.ScopeView = function (opts) {
     /* 右下：模擬表示 */
     ctx.fillStyle = 'rgba(255,255,255,0.45)'; ctx.textBaseline = 'bottom';
     ctx.fillText(NS.t('模擬映像（デモ）'), W - 18, H - 18);
-    /* 露出インジケータ */
-    if (S.running) {
+    /* 録画インジケータ（録画中は露出インジケータの代わりに出す） */
+    if (recOn) {
+      var el2 = (Date.now() - S.rec.t0) / 1000;
+      var frames = Math.floor(el2 * S.rec.fps);
+      ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+      /* 赤丸は 1 秒周期で点滅させる */
+      if (Math.floor(el2 * 2) % 2 === 0) {
+        ctx.fillStyle = '#D6405F';
+        ctx.beginPath(); ctx.arc(23, H - 26, 4.2, 0, 7); ctx.fill();
+      }
+      ctx.font = '10px ui-monospace, monospace';
+      ctx.fillStyle = 'rgba(226,232,242,0.92)';
+      ctx.fillText('REC  ' + NS.vidTime(el2) + '   ' + S.rec.fps + ' fps   ' + vs.w + ' × ' + vs.h + '  ' + vs.bit + ' bit',
+                   33, H - 22);
+      ctx.fillStyle = 'rgba(200,212,230,0.72)';
+      ctx.fillText(f(vs.mbs, 0) + ' MB/s   ' + NS.f(frames, 0) + ' ' + NS.t('フレーム') + '   '
+                   + f(el2 * vs.mbs / 1000, 2) + ' GB', 33, H - 9);
+    } else if (S.running) {
       var p = ((performance.now() - A.t0) / 1000 % S.exp) / S.exp;
       ctx.fillStyle = 'rgba(214,64,95,0.85)';
       ctx.fillRect(18, H - 22, (W - 36) * p, 3);
@@ -613,6 +657,7 @@ NS.V.telescope = function (root, go, arg) {
   var S = {
     scope:NS.SCOPES[0], mode:'lif', target:NS.SCOPE_TARGETS[0],
     ra:0, dec:0, exp:10, gain:180, frames:30, bin:1, filter:'none',
+    rec:{ on:false, fps:60, t0:0 },
     running:true, open:true, seeing:2.4, track:1.1, focus:3.2, log:[],
     /* 昼間は観測条件が成立しないので、既定では今夜の星空を映す（全天カメラと同じ扱い） */
     t:defT.t, live:defT.live, tLabel:defT.label
@@ -689,6 +734,15 @@ NS.V.telescope = function (root, go, arg) {
       ['望遠鏡', '<b>' + sc.name + '</b>（' + st.name + '）'],
       ['光学系', '口径 ' + sc.ap + ' mm・焦点距離 ' + sc.fl + ' mm（F' + sc.fr.toFixed(1) + '）・分解能 ' + sc.res.toFixed(1) + '″'],
       ['カメラ', sc.cam + '　' + sc.px],
+      ['ビデオ録画', (function () {
+        var v = NS.vidSpec(sc, S.rec.fps, S.bin);
+        return (S.rec.on
+          ? '<b style="color:var(--c-crit)">' + NS.t('録画中') + '</b>　' + NS.vidTime((Date.now() - S.rec.t0) / 1000)
+          : '<b>' + NS.t('停止中') + '</b>')
+          + '　' + S.rec.fps + ' fps・' + v.w + ' × ' + v.h + '・' + v.bit + ' bit'
+          + '　<span class="hint">' + f(v.mbs, 0) + ' MB/s（' + f(v.gbMin, 1) + NS.t(' GB/分）・上限 ')
+          + v.max + ' fps</span>';
+      })()],
       ['指向', 'α ' + f(S.ra, 3) + '°　δ ' + (S.dec >= 0 ? '+' : '') + f(S.dec, 3) + '°'],
       ['カメラ回転角', (view.fovRot > 0 ? '+' : '') + f(view.fovRot, 1) + '°　<span class="hint">北から東回り。枠の上のハンドルで回せる</span>'],
       ['追尾残差', f(S.track, 2) + ' ″/min　<span class="hint">目標 2″/min 以内</span>'],
@@ -817,6 +871,53 @@ NS.V.telescope = function (root, go, arg) {
       }))
     ]);
   };
+  /* ビデオ録画の操作。鏡筒ごとに出せるフレーム速度の上限が違う（ASI174MM は 128 fps、
+     Draco の動画は 60 fps まで）ので、超える選択肢は押せないようにしておく。 */
+  var fpsBtns = [];
+  var fpsSeg = el('div', { class:'seg' }, NS.VID_FPS.map(function (v) {
+    var b = el('button', { text:v + ' fps', 'aria-pressed':v === S.rec.fps ? 'true' : 'false',
+      onclick:function () {
+        var spec = NS.vidSpec(S.scope, v, S.bin);
+        if (!spec.ok) {
+          pushLog(NS.t('この鏡筒は ') + spec.max + NS.t(' fps まで。') + v + NS.t(' fps は選べない'), 'warn');
+          return;
+        }
+        S.rec.fps = v;
+        fpsBtns.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+        pushLog(NS.t('録画のフレーム速度を ') + v + NS.t(' fps に設定（露出 1/') + v
+          + NS.t(' 秒・') + f(spec.mbs, 0) + ' MB/s）', 'cmd');
+        syncFps(); redraw();
+      } });
+    fpsBtns.push(b);
+    return b;
+  }));
+  var recBtn = el('button', { class:'iconbtn', text:'● 録画 開始／停止', onclick:function () {
+    var spec = NS.vidSpec(S.scope, S.rec.fps, S.bin);
+    if (!S.rec.on && !spec.ok) { pushLog(NS.t('この鏡筒は ') + spec.max + NS.t(' fps まで。') + S.rec.fps + NS.t(' fps は選べない'), 'warn'); return; }
+    if (S.rec.on) {
+      var sec = (Date.now() - S.rec.t0) / 1000;
+      S.rec.on = false;
+      pushLog(NS.t('録画を停止：') + NS.vidTime(sec) + '（' + NS.f(Math.floor(sec * S.rec.fps), 0)
+        + NS.t(' フレーム・') + f(sec * spec.mbs / 1000, 2) + NS.t(' GB を保存）'), 'ok');
+    } else {
+      S.rec.on = true; S.rec.t0 = Date.now();
+      pushLog(NS.t('録画を開始：') + S.rec.fps + ' fps・' + spec.w + ' × ' + spec.h + '・' + spec.bit
+        + NS.t(' bit（') + f(spec.mbs, 0) + ' MB/s・' + f(spec.gbMin, 1) + NS.t(' GB/分）'), 'ok');
+    }
+    recBtn.setAttribute('aria-pressed', S.rec.on ? 'true' : 'false');
+    recBtn.style.color = S.rec.on ? 'var(--c-crit)' : '';
+    redraw();
+  } });
+  /* 鏡筒を変えたときに、選べないフレーム速度を落とす */
+  function syncFps() {
+    fpsBtns.forEach(function (b, i) {
+      var ok = NS.vidSpec(S.scope, NS.VID_FPS[i], S.bin).ok;
+      b.style.opacity = ok ? 1 : 0.38;
+      b.setAttribute('aria-disabled', ok ? 'false' : 'true');
+      if (!ok) b.setAttribute('aria-pressed', 'false');
+    });
+  }
+
   var ctl = panel('リモート操作', { note:'船橋校舎の観測室と、各学部・付属校の端末から同じ画面で操作する' }, [
     el('div', { class:'ctlrow' }, [
       el('span', { class:'cl-l', text:'目標' }),
@@ -828,6 +929,12 @@ NS.V.telescope = function (root, go, arg) {
     ]),
     el('div', { class:'ctlrow' }, [el('span', { class:'cl-l', text:'微動ステップ' }), stepSeg]),
     pad,
+    /* ビデオ録画。月面衝突閃光は 1 フレームに満たない明滅なので、
+       長時間露出ではなく速いフレームで録りつづけ、フレーム間の差分で拾う。 */
+    el('div', { class:'ctlrow' }, [
+      el('span', { class:'cl-l', text:'ビデオ録画' }),
+      fpsSeg, el('div', { class:'spacer' }), recBtn
+    ]),
     numRow('露出 (s)', [['1', 1], ['10', 10], ['60', 60], ['300', 300]], function () { return S.exp; }, function (v) { S.exp = v; pushLog(NS.t('露出を ') + v + NS.t(' 秒に設定'), 'cmd'); }),
     numRow('ゲイン', [['100', 100], ['180', 180], ['300', 300], ['500', 500]], function () { return S.gain; }, function (v) { S.gain = v; pushLog(NS.t('ゲインを ') + v + NS.t(' に設定'), 'cmd'); }),
     numRow('積算', [['1', 1], ['30', 30], ['120', 120], ['600', 600]], function () { return S.frames; }, function (v) { S.frames = v; pushLog(NS.t('積算枚数を ') + v + NS.t(' に設定'), 'cmd'); }),

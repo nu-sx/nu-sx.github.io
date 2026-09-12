@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ja" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>日本大学 全学屋上観測網「ソラ」（NU-SORA）観測ポータル デモ版</title>
+<meta name="description" content="Nihon University Sky Observation and Resilience Array（NU-SORA）観測ポータルのデモ版。全国14局の火球・スペースデブリ再突入・インフラサウンド・気象・夜空輝度の統合表示。">
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="css/app.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23B5123E'/%3E%3Cpath d='M6 24 L24 8' stroke='%23fff' stroke-width='2.4' stroke-linecap='round'/%3E%3Ccircle cx='24' cy='8' r='3.2' fill='%23fff'/%3E%3Ccircle cx='9' cy='11' r='1.2' fill='%23fff'/%3E%3Ccircle cx='15' cy='7' r='1' fill='%23fff'/%3E%3Ccircle cx='22' cy='21' r='1' fill='%23fff'/%3E%3C/svg%3E">
+</head>
+<body>
+<a class="skiplink" href="#main">本文へ</a>
+<div class="demo-bar">
+  <b>デモ版</b>
+  <span>表示されている観測値・イベントは一部模擬データです（気象庁のひまわり衛星画像・天気図は実データ）。</span>
+  <span>観測局の配置・機材構成・解析手法は令和9年度 日本大学特別研究の申請内容に基づきます。</span>
+</div>
+<header class="top" id="head"></header>
+<main id="main"></main>
+<footer>
+  <b>日本大学 全学屋上観測網「ソラ」（NU-SORA — Nihon University Sky Observation and Resilience Array）</b><br>
+  主幹：日本大学 理工学部（理工学研究所）宇宙科学研究ユニット NU-SX　／　連携：危機管理・法・文理・工・生産工・生物資源・スポーツ科学・芸術・国際関係の各学部と付属校<br>
+  観測局 14 局（大学キャンパス拠点 7・付属校拠点 7）。全局同一のフル構成：高感度全天カメラ 2 台＋カラー補助カメラ、4K 分光カメラ、インフラサウンドセンサー 2 台、複合気象センサー、夜空輝度計、電波流星受信機、2 周波 GNSS、微動計、制御 PC。SWIR 冷却カメラは船橋・湘南・郡山・三島の 4 局。<br>
+  地図データ：dataofjapan/land（国土数値情報を簡略化）。恒星：エール輝星星表 第5版（BSC5, Hoffleit &amp; Warren 1991, CDS/VizieR V/50）9,096 個。星座線：IAU 公式星座図形（Stellarium modern_iau, CC BY-SA 4.0）。天の川：Tycho-2 星数密度（Hog et al. 2000, CDS I/259）。<br>
+  <span style="opacity:.7">本ページはローカルで動作する静的デモであり、外部サーバーへの通信は行いません（Web フォントの読み込みを除く）。</span>
+</footer>
+<script src="js/geo-japan.js"></script>
+<script src="js/geo-world50.js"></script>
+<script src="js/starcatalog.js"></script>
+<script src="js/core.js"></script>
+<script src="js/i18n-en.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/data.js"></script>
+<script src="js/events.js"></script>
+<script src="js/muni-index.js"></script>
+<script src="js/map.js"></script>
+<script src="js/jma.js"></script>
+<script src="js/nied.js"></script>
+<script src="js/sky.js"></script>
+<script src="js/infra.js"></script>
+<script src="js/sensors.js"></script>
+<script src="js/gundam.js"></script>
+<script src="js/cosmic.js"></script>
+<script src="js/orbit3d.js"></script>
+<script src="js/worldmap.js"></script>
+<script src="js/moon.js"></script>
+<script src="js/telescope.js"></script>
+<script src="js/views1.js"></script>
+<script src="js/views2.js"></script>
+<script src="js/views3.js"></script>
+<script src="js/views4.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

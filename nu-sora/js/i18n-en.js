@@ -3789,5 +3789,15 @@ var NS_EN = {
 "° は太陽同期軌道の値。傾斜角の低い候補は横切れず、残る太陽同期の 2 天体は再突入予報時刻と軌道速度で分かれる": "°, is a sun-synchronous value. The low-inclination candidates cannot cross, and the two remaining sun-synchronous objects are separated by predicted re-entry time and orbital speed.",
 "6 局で再突入発光を検出。経路角 1.4°・継続 3 分 17 秒から人工物と即時判定": "Six stations detected the re-entry; a path angle of 1.4° and a duration of 3 min 17 s identified it immediately as artificial",
 "°</b> となる。90° を少し超える逆行で、これは地球観測衛星が使う": "°</b>. A little over 90°, that retrograde value is what Earth-observation satellites use for a ",
-"デモ衛星 A（NORAD 仮 ID 99214 / COSPAR 2024-DEMO-A・太陽同期軌道）": "Demo satellite A (provisional NORAD ID 99214 / COSPAR 2024-DEMO-A; sun-synchronous orbit)"
+"デモ衛星 A（NORAD 仮 ID 99214 / COSPAR 2024-DEMO-A・太陽同期軌道）": "Demo satellite A (provisional NORAD ID 99214 / COSPAR 2024-DEMO-A; sun-synchronous orbit)",
+"東京上空の高度 78 km で発光し、北北西へ約 200 km 進んで福島県 会津の上空 54 km で発光を終えた。": "It lit up at 78 km over Tokyo, ran about 200 km north-northwest and stopped glowing at 54 km over the Aizu district of Fukushima. ",
+"速度 7.6 km/s・発光開始の経路角 1.42° は自然火球と明確に異なり、": "A speed of 7.6 km/s and a path angle of 1.42° at first light are clearly unlike any natural fireball, and ",
+"残った破片は暗黒飛行ののち会津の山間部へ落ちたと推定される。分光では Al・Cu・Li を検出した。": "the surviving fragments are estimated to have fallen, after dark flight, into the mountains of Aizu. The spectrum shows Al, Cu and Li.",
+"発光開始時。極めて浅い ＝ 人工天体の特徴（減速で経路は下へ曲がり、終端では約 12°）": "At first light. Extremely shallow — the signature of an artificial object. Deceleration bends the path downward, reaching about 12° at the end.",
+"パドル分離（主フレア −6.4 等）。埼玉県上空": "Solar panels separate (main flare −6.4 mag), over Saitama",
+"本体分裂（最大フレア −8.2 等）。栃木県上空": "The body breaks up (peak flare −8.2 mag), over Tochigi",
+"減光しつつ破片が分散。福島県境へ": "Fading as the fragments disperse, towards the Fukushima border",
+"実線は発光区間、赤の破線は発光終了（高度 ": "The solid line is the luminous segment; the red dashed line is the dark flight from the end of luminous flight (",
+"）から落下点までの暗黒飛行。✕ が推定落下点。市区町村の境界は国土数値情報 行政区域データ（国土交通省）による": ") to the impact point. ✕ marks the estimated impact point. Municipal boundaries from the National Land Numerical Information (MLIT).",
+" 秒という長い発光と浅い経路角は、円軌道からの人工天体の再突入に特有である。東京上空から会津へ約 200 km を駆け抜ける経路で、都心の 3 局はほぼ真上（仰角 70° 以上）に見ている。": " s of luminous flight with such a shallow path angle is characteristic of an artificial object re-entering from a circular orbit. The track runs some 200 km from over Tokyo to Aizu, and the three stations in central Tokyo saw it almost overhead, above 70° elevation."
 };

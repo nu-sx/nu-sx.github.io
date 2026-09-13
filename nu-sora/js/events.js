@@ -336,34 +336,37 @@ function fireballBoso() {
 
 function reentryDemo() {
   var t = NS.night(6, 4, 12, 36, 900);
-  var lc = NS.makeLightcurve({ seed:'RE-DEMO', dur:196.9, beginMag:1.5, peakMag:-8.2, peakAt:0.48,
+  var lc = NS.makeLightcurve({ seed:'RE-DEMO', dur:26.2, beginMag:1.5, peakMag:-8.2, peakAt:0.48,
     flares:[{ at:0.31, amp:1.8, w:0.012 }, { at:0.46, amp:2.6, w:0.010 }, { at:0.58, amp:2.1, w:0.011 }, { at:0.71, amp:1.4, w:0.014 }] });
   var ErJ = NS.integrateEr(lc);
+  /* 経路が東京上空から会津へ抜けるので、関東・南東北の局が高い仰角で押さえる。
+     仰角・距離とインフラサウンドの到達は、経路の幾何から計算し直す（NS.infraGeom）。 */
   var det = [
-    { id:'MSM', mag:-8.2, elev:58.3, snr:184, swir:false,  infra:{ dt:196.2, P:1.35, amp:0.28, az:74.6 } },
-    { id:'SNN', mag:-8.0, elev:49.6, snr:171, swir:false,  infra:{ dt:238.7, P:1.31, amp:0.21, az:242.0 } },
-    { id:'SKS', mag:-7.6, elev:36.2, snr:128, swir:false, infra:{ dt:301.5, P:1.29, amp:0.14, az:228.4 } },
-    { id:'SRG', mag:-7.5, elev:33.0, snr:119, swir:false, infra:null },
-    { id:'FNB', mag:-7.3, elev:29.4, snr:104, swir:true,  infra:null },
-    { id:'OGK', mag:-6.9, elev:21.8, snr: 61, swir:false, infra:null }
+    { id:'SRG', mag:-8.2, snr:186, swir:false, infra:{ P:1.35, amp:0.31 } },
+    { id:'SKS', mag:-8.1, snr:178, swir:false, infra:{ P:1.33, amp:0.28 } },
+    { id:'FNB', mag:-8.0, snr:164, swir:true,  infra:{ P:1.31, amp:0.22 } },
+    { id:'TCR', mag:-7.8, snr:142, swir:false, infra:{ P:1.30, amp:0.19 } },
+    { id:'KYM', mag:-7.5, snr:118, swir:true,  infra:{ P:1.29, amp:0.16 } },
+    { id:'YMG', mag:-7.1, snr: 78, swir:false, infra:null }
   ];
   return {
     id:'NUS-RE-2028-0704-02', kind:'reentry', t:t, name:'太陽同期軌道の地球観測衛星の制御外再突入',
     objName:'デモ衛星 A（NORAD 仮 ID 99214 / COSPAR 2024-DEMO-A・太陽同期軌道）',
     summary:'公開軌道要素からの再突入予報（予報窓 ±32 分）に対し、実際の発光を 6 局で捉えた事例。'
-      + '三陸沖から小笠原の北へ、日本列島の東を南南西へ約 1,500 km なぞる経路で、'
-      + '経路角 1.42°・速度 7.6 km/s・継続 3 分 17 秒という自然火球と明確に異なる突入条件を示した。'
+      + '東京上空の高度 78 km で発光し、北北西へ約 200 km 進んで福島県 会津の上空 54 km で発光を終えた。'
+      + '速度 7.6 km/s・発光開始の経路角 1.42° は自然火球と明確に異なり、'
       + '軌跡の向きと緯度から求めた軌道傾斜角は 97.4° で、地球観測衛星が使う太陽同期軌道にあたる。'
-      + '分光では Al・Cu・Li を検出した。',
-    absMag:-8.2, dur:196.9, stationsDet:6, stationsFov:7, lightcurve:lc,
-    begin:{ lat:41.80, lon:142.60, alt:78.4 }, end:{ lat:28.48, lon:139.96, alt:41.2 },
-    vInf:7.62, entryAngle:1.42, azimuth:190.0, ErJ:ErJ, ErKt:ErJ / NS.KT_J,
+      + '残った破片は暗黒飛行ののち会津の山間部へ落ちたと推定される。分光では Al・Cu・Li を検出した。',
+    absMag:-8.2, dur:26.2, stationsDet:6, stationsFov:7, lightcurve:lc,
+    begin:{ lat:35.700, lon:139.900, alt:78.4 }, end:{ lat:37.475, lon:139.542, alt:54.4 },
+    impact:{ lat:37.653, lon:139.506, name:'福島県 会津地方の山間部（西会津町の北）' },
+    vInf:7.62, entryAngle:1.42, azimuth:350.9, ErJ:ErJ, ErKt:ErJ / NS.KT_J,
     objMass:264, objArea:'太陽電池パドル 2 翼 / 本体 1.1 × 0.8 × 0.6 m',
     predict:{ issued:-9.6, windowMin:32, srcTLE:'2028-07-03T14:22Z 元期', errKm:640, errMin:11.4 },
-    frag:[ { t:61.0,  alt:66.9, n:2,  note:'パドル分離（主フレア −6.4 等）' },
-           { t:90.2,  alt:61.4, n:5,  note:'本体分裂（最大フレア −8.2 等）' },
-           { t:114.4, alt:56.8, n:9,  note:'二次分裂・尾を引く破片列' },
-           { t:139.4, alt:52.1, n:14, note:'減光しつつ破片が分散' } ],
+    frag:[ { t:8.1,  alt:71.0, n:2,  note:'パドル分離（主フレア −6.4 等）。埼玉県上空' },
+           { t:12.0, alt:67.4, n:5,  note:'本体分裂（最大フレア −8.2 等）。栃木県上空' },
+           { t:15.2, alt:64.5, n:9,  note:'二次分裂・尾を引く破片列' },
+           { t:18.5, alt:61.4, n:14, note:'減光しつつ破片が分散。福島県境へ' } ],
     swirObs:{ stations:['FNB'], band:'1.2–1.6 µm', tempK:2118, tempErr:140,
       note:'可視・近赤外・SWIR の三波長帯の強度比から破片表面温度を推定。アルミ合金の融点（約 930 K）を大きく超え、酸化アルミの気化領域に達している。' },
     ablation:{ totalKg:214, alKg:68.3, cuKg:5.1, liKg:0.42, other:'Ti・Nb・Hf 微量',

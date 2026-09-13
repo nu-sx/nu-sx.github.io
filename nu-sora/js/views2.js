@@ -725,7 +725,8 @@ NS.V.reentry = function (root, go, arg) {
       kpi('最大絶対等級', NS.f(e.absMag, 1), '等', '継続 ' + NS.f(e.dur, 1) + ' 秒', { acc:true }),
       kpi('突入速度', NS.f(e.vInf, 2), 'km/s', '自然火球（11〜72 km/s）より明確に遅い'),
       kpi('経路角', NS.f(e.entryAngle, 2), '°',
-          bal ? '軌道デブリ（1〜3°）よりはるかに急 ＝ 弾道軌道の特徴' : '極めて浅い ＝ 人工天体の特徴'),
+          bal ? '軌道デブリ（1〜3°）よりはるかに急 ＝ 弾道軌道の特徴'
+              : '発光開始時。極めて浅い ＝ 人工天体の特徴（減速で経路は下へ曲がり、終端では約 12°）'),
       kpi('対象質量', e.objMass, 'kg', e.objArea)
     ])
   ])));
@@ -834,7 +835,8 @@ NS.V.reentry = function (root, go, arg) {
     M.fit([e.begin, e.end], 0.9);
   }
   var mp = panel(e.impact ? '地上軌跡・暗黒飛行・推定落下点' : '地上軌跡と破片化地点',
-    { note:e.impact ? '実線は発光区間、赤の破線は発光終了（高度 27 km）から海面までの暗黒飛行。✕ が推定落下点。市区町村の境界は国土数値情報 行政区域データ（国土交通省）による'
+    { note:e.impact ? NS.t('実線は発光区間、赤の破線は発光終了（高度 ') + NS.km(e.end.alt, 0)
+                      + NS.t('）から落下点までの暗黒飛行。✕ が推定落下点。市区町村の境界は国土数値情報 行政区域データ（国土交通省）による')
                     : '円の大きさは破片数。市区町村の境界は国土数値情報 行政区域データ（国土交通省）による' }, []);
   var mb = mp.querySelector('.panel-b'); mb.classList.add('flush'); mb.appendChild(M.node);
 
@@ -846,7 +848,7 @@ NS.V.reentry = function (root, go, arg) {
         rules:e.frag.map(function (f) { return { x:f.t, color:'var(--muted)', dash:'2 3' }; }) }),
       NS.chart.legend(series.map(function (x) { return [x.name, x.color, 'line']; })),
       el('div', { class:'note', text:bal ? '自然火球は 0.5〜8 秒、軌道デブリは 20〜120 秒。22 秒という長さは軌道デブリに近いが、経路角 38° と速度 5.9 km/s の組み合わせはどちらとも重ならない。急な経路角では大気の密度が急に増すため、光度曲線の立ち上がりが鋭くなる。'
-                                          : '自然火球の継続時間は通常 1〜5 秒。' + NS.f(e.dur, 0) + ' 秒という長い発光と浅い経路角は、円軌道からの人工天体の再突入に特有である。日本列島の東を約 1,500 km なぞる経路で、6 局が同じ事象を別々の方向から捉えている。' })
+                                          : '自然火球の継続時間は通常 1〜5 秒。' + NS.f(e.dur, 0) + ' 秒という長い発光と浅い経路角は、円軌道からの人工天体の再突入に特有である。東京上空から会津へ約 200 km を駆け抜ける経路で、都心の 3 局はほぼ真上（仰角 70° 以上）に見ている。' })
     ]),
     mp
   ]));

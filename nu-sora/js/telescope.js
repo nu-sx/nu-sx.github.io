@@ -748,6 +748,8 @@ NS.V.telescope = function (root, go, arg) {
       ['追尾残差', f(S.track, 2) + ' ″/min　<span class="hint">目標 2″/min 以内</span>'],
       ['シーイング', f(S.seeing, 2) + ' ″　<span class="hint">全天カメラの星像から推定</span>'],
       ['焦点（HFD）', f(S.focus, 2) + ' ″　<span class="hint">気温からモデルで先に動かす</span>'],
+      ['指令経路', '<span class="mono">nusora/cmd/' + sc.st.toLowerCase() + '/' + sc.id.toLowerCase()
+        + '</span>　<span class="hint">AWS IoT Core（MQTT・QoS 1）。ack トピックで往復を測る</span>'],
       ['指令往復遅延', Math.round(210 + NS.rng('lat' + Math.floor(NS.now() / 30000))() * 90) + ' ms'],
       ['ハウジング', S.open ? '<b style="color:var(--c-ok)">開（観測中）</b>' : '<b style="color:var(--c-warn)">閉（待機）</b>'],
       ['観測条件', i.items.filter(function (x) { return x.ok; }).length + ' / ' + i.items.length + ' 項目が成立']

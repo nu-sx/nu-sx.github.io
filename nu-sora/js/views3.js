@@ -1055,6 +1055,11 @@ NS.V.data = function (root, go, arg) {
       el('div', { class:'api', text:JSON.stringify(json, null, 2) }))
   ]));
 
+  /* MQTT リモート観測サーバ（AWS IoT Core） */
+  if (NS.mqttPanels) NS.mqttPanels().forEach(function (p2) {
+    NS.add(root, el('div', { style:{ marginTop:'14px' } }, p2));
+  });
+
   NS.add(root, el('div', { style:{ marginTop:'14px' } }, panel('デジタルツイン（DT-1〜DT-7）',
     { note:'実測で常時更新される仮想モデル。可視化だけのダッシュボードとは区別する' },
     NS.table(['ツイン', '対象', '観測網から得るデータ', '目的・what-if'], [

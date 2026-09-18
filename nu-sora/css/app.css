@@ -482,3 +482,15 @@ footer{max-width:1440px;margin:0 auto;padding:22px 18px 44px;border-top:1px soli
 .cmdlog .cl.ok span:last-child{color:var(--c-ok)}
 .cmdlog .cl.warn span:last-child{color:var(--c-warn)}
 .cmdlog .cl.cmd span:last-child{color:var(--ink2)}
+
+/* ---- MQTT モニタと構成図 ---- */
+.mqlog{max-height:330px}
+.mqlog .cl{align-items:flex-start;gap:6px;flex-wrap:wrap}
+.mqd{font-weight:700;width:12px;text-align:center}
+.mqd.up{color:var(--c-ok)} .mqd.down{color:var(--c-warn)} .mqd.both{color:var(--c-info)}
+.mqt2{font-family:ui-monospace,SFMono-Regular,monospace;font-size:11px;color:var(--c-sky);white-space:nowrap}
+.mqq{font-size:10px;color:var(--muted);white-space:nowrap}
+.mqb{font-family:ui-monospace,SFMono-Regular,monospace;font-size:10.5px;color:var(--ink2);
+  flex:1 1 320px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+text.mqt{font-size:12px;font-weight:700;fill:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif}
+text.mqs{font-size:10.5px;fill:var(--muted);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif}

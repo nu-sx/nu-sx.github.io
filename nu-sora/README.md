@@ -14,10 +14,14 @@
 ビルド不要・依存パッケージなし。`index.html` をブラウザで開くだけで動く。
 
 ```bash
-open index.html                 # macOS。ダブルクリックでも可
-# もしくはローカルサーバー経由（推奨・どのブラウザでも確実）
-python3 -m http.server 8777     # → http://127.0.0.1:8777/
+# ローカルサーバー経由（推奨）
+python3 -m http.server 8777     # → http://127.0.0.1:8777/index.html
+open index.html                 # ファイルを直接開くこともできる（macOS）
 ```
+
+全天カメラの天の川は NASA の全天星図（`assets/sky/milkyway_nasa.jpg`）の画素を読んで魚眼に貼るため、
+**`file://` で直接開くとブラウザの制限でこの星図が使えない**（キャンバスが汚染されて画素を読めない）。
+その場合は Tycho-2 の星数密度グリッドによる簡易表示へ自動で切り替わる。星図を見るにはローカルサーバー経由で開くこと。
 
 外部への通信は Google Fonts（Shippori Mincho / Zen Kaku Gothic New）の読み込みのみ。
 オフラインでもフォントが代替されるだけで、すべての機能が動作する。
@@ -179,7 +183,9 @@ assets/             参照図の置き場（README 参照。画像を置くと�
 - 日本の都道府県境界（国土数値情報を簡略化したデータ）
 - 恒星 9,096 個の位置・等級・色指数：エール輝星星表 第5版（BSC5, Hoffleit & Warren 1991, CDS/VizieR V/50。パブリックドメイン）
 - 星座線 752 本：IAU 公式星座図形（Stellarium「modern_iau」スカイカルチャー, CC BY-SA 4.0）
-- 天の川：Tycho-2 の V<11.5 星数密度（Hog et al. 2000, CDS I/259）を 1 度グリッドに集計
+- 天の川：NASA/GSFC Scientific Visualization Studio「Deep Star Maps 2020」（SVS 4851, Ernie Wright, パブリックドメイン）の赤道座標版。
+  Hipparcos-2・Tycho-2・Gaia DR2 の 17 億個の星から描かれた全天星図（2048 × 1024 に縮小）を、各局の緯度と地方恒星時にあわせて魚眼に貼る。
+  星図を読めないときの予備として、Tycho-2 の V<11.5 星数密度（Hog et al. 2000, CDS I/259）の 1 度グリッドも残してある
 - 発光スペクトルの線同定と相対強度（実際に取得された流星スペクトルの代表例に基づく。S. Abe et al. 2000 ほか）
 - スペースデブリの分子バンド（AlO・CN・TiO・FeO）の同定・励起温度・局面ごとの推移
   （Watanabe, Abe, Arima & Hanayama, ACM 2026。同観測の値：CN 約 12,000 K、AlO 約 5,000–9,000 K、
@@ -266,7 +272,7 @@ NU-SX (Shinsuke Abe) が公開している、観測と理論を「動かして�
 - **Meteorium（メテオリウム）** — 宇宙科学デジタルツイン アプリ、NU-SX (Shinsuke Abe) 2026（[紹介記事](https://aero.cst.nihon-u.ac.jp/abe-s/2026/08/31/meteorium%ef%bc%88%e3%83%a1%e3%83%86%e3%82%aa%e3%83%aa%e3%82%a6%e3%83%a0%ef%bc%89/) ／ [App Store](https://apps.apple.com/jp/app/id6798546441)）
   — ダストトレイルと地球軌道の交差を俯瞰し、そのまま地上視点で流星雨を再現する。PF-2（デジタルツイン）・DT-7 が目指す形を観測データ側から補完する
 - **Astrarium（アストラリウム）** — 星空アプリ、NU-SX (Shinsuke Abe) 2026（[紹介記事](https://aero.cst.nihon-u.ac.jp/abe-s/2026/08/01/%e3%83%97%e3%83%a9%e3%83%8d%e3%82%bf%e3%83%aa%e3%82%a6%e3%83%a0%e3%82%a2%e3%83%97%e3%83%aa%e3%82%92%e3%80%80%e5%85%ac%e9%96%8b/) ／ [App Store](https://apps.apple.com/jp/app/id6795053748)）
-  — 本デモの全天カメラが用いる BSC5・IAU 星座図形・Tycho-2 天の川は、このアプリのために整備されたデータをそのまま取り込んだもの。DT-7・G-8 に接続する
+  — 本デモの全天カメラが用いる BSC5・IAU 星座図形は、このアプリのために整備されたデータをそのまま取り込んだもの。DT-7・G-8 に接続する
 - **Cometarium（コメタリウム）** — 彗星ビューア、NU-SX (Shinsuke Abe) 2026（[App Store](https://apps.apple.com/jp/app/id6801072934)）
   — 彗星の位置・光度・尾を実測の軌道と物理モデルで描く。COBS の観測に光度式を当てはめ ±3σ 帯で示す姿勢は、本デモが火球の光度曲線とエネルギー推定の不確かさを併記する考え方と同じ。流星群の母天体の側から DT-1 を補完する
 

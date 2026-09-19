@@ -513,7 +513,7 @@ NS.V.stations = function (root, go) {
     } });
   }));
   var p2 = panel('全天カメラ（全 14 局）',
-    { note:'恒星はエール輝星星表（BSC5）9,096 個、天の川は Tycho-2 の星数密度。雲・流星・人工衛星の軌跡・空の明るさは模擬',
+    { note:'恒星はエール輝星星表（BSC5）9,096 個、天の川は NASA「Deep Star Maps 2020」。雲・流星・人工衛星の軌跡・空の明るさは模擬',
       tools:seg }, [el('div', { style:{ marginBottom:'8px' } }, skyNote), grid]);
   NS.add(root, el('div', { style:{ marginTop:'14px' } }, p2));
   applySkyTime(def.t, def.live, def.label);
@@ -683,7 +683,7 @@ NS.V.station = function (root, go, arg) {
   function setSky(t, live, label) {
     A.setTime(t, live);
     NS.clear(skyNote2);
-    NS.add(skyNote2, '恒星はエール輝星星表（BSC5）の 9,096 個、星座線は IAU 公式星座図形、天の川は Tycho-2 の星数密度を用い、地方恒星時から地平座標へ変換して描いている（等距離魚眼投影・北が上・東が左）。色は B−V 色指数による。'
+    NS.add(skyNote2, '恒星はエール輝星星表（BSC5）の 9,096 個、星座線は IAU 公式星座図形、天の川は NASA「Deep Star Maps 2020」の全天星図を用い、地方恒星時から地平座標へ変換して描いている（等距離魚眼投影・北が上・東が左）。恒星の色は B−V 色指数による。'
       + (live ? '現在時刻の空を表示している。' : '現在は昼間・薄明のため、' + NS.fmtJST(t, { sec:false }) + ' JST の星空を再現して表示している。')
       + '雲・流星・人工衛星の軌跡・空の明るさはデモ用の模擬である。');
   }

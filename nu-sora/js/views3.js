@@ -1098,7 +1098,7 @@ NS.V.about = function (root, go) {
         'メシエ天体（M42・M31・M45）：Digitized Sky Survey 2（DSS2）の実写。NASA/GSFC SkyView から IR・Red・Blue の 3 板を取得し、背景を平坦化して合成した。リモート望遠鏡のリアルタイム画面で、視野中心と画角にあわせて貼っている（DSS は Space Telescope Science Institute が米国政府交付金 NAG W-2166 により作成。原板はパロマー天文台オシュキン・シュミット望遠鏡と英国シュミット望遠鏡による）',
         '恒星 9,096 個の位置・等級・色指数：エール輝星星表 第5版（BSC5, Hoffleit & Warren 1991, CDS/VizieR V/50）',
         '星座線 752 本：IAU 公式星座図形（Stellarium「modern_iau」スカイカルチャー, CC BY-SA 4.0）',
-        '天の川：Tycho-2 の V<11.5 星数密度（Hog et al. 2000, CDS I/259）を 1 度グリッドに集計したもの',
+        '天の川：NASA/GSFC Scientific Visualization Studio「Deep Star Maps 2020」（SVS 4851, Ernie Wright, パブリックドメイン）の赤道座標版。Hipparcos-2・Tycho-2・Gaia DR2 の 17 億個の星から描かれた全天星図で、2048 × 1024 に縮小したものを各局の緯度と地方恒星時にあわせて魚眼に貼っている',
         '物理関係式：Brown et al. (2002) の Er–E 関係、AFTAC の周期–収量関係、Ono & Tonouchi (2014) の WBGT 推定式、Bortle (2001) の空の等級',
         '気象庁 ひまわり衛星画像（可視 B03・赤外 B13・水蒸気 B08・真彩色）と地上天気図：気象庁のサーバーから実データを取得して観測局マップに重ねている',
         '流星群の活動期間・極大日・極大時の太陽黄経・ZHR：IMO Meteor Shower Calendar / IMO Working List（主要 16 群）',
@@ -1137,7 +1137,7 @@ NS.V.about = function (root, go) {
       ['日本大学 付属校一覧', 'https://www.nihon-u.ac.jp/affiliate_school/'],
       ['エール輝星星表 第5版（BSC5, CDS/VizieR V/50）', 'https://cdsarc.cds.unistra.fr/viz-bin/cat/V/50'],
       ['IAU 公式星座図形（Stellarium modern_iau, CC BY-SA 4.0）', 'https://github.com/Stellarium/stellarium/blob/master/skycultures/modern_iau/description.md'],
-      ['Tycho-2 星表（Hog et al. 2000, CDS I/259）', 'https://cdsarc.cds.unistra.fr/viz-bin/cat/I/259'],
+      ['NASA/GSFC SVS「Deep Star Maps 2020」（SVS 4851）', 'https://svs.gsfc.nasa.gov/4851/'],
       ['SonotaCo Network Japan（UFOCapture）', 'https://sonotaco.jp/'],
       ['株式会社サヤ INF03（インフラサウンド）', 'https://www.saya-net.com/products/inf03.html'],
       ['Unihedron SQM-LU-DL（夜空輝度計）', 'https://unihedron.com/projects/sqm-lu-dl/'],
@@ -1254,7 +1254,7 @@ NS.V.about = function (root, go) {
       lnk('https://aero.cst.nihon-u.ac.jp/abe-s/2026/08/01/%e3%83%97%e3%83%a9%e3%83%8d%e3%82%bf%e3%83%aa%e3%82%a6%e3%83%a0%e3%82%a2%e3%83%97%e3%83%aa%e3%82%92%e3%80%80%e5%85%ac%e9%96%8b/', '紹介記事'),
       lnk('https://apps.apple.com/jp/app/id6795053748', 'App Store')
     ]),
-     '観測地・日時を指定してその空に見える星座・天体を再現する。本デモの「全天カメラ」が用いているエール輝星星表（BSC5）・IAU 公式星座図形・Tycho-2 の天の川は、いずれもこのアプリのために整備されたデータをそのまま取り込んだもので、描画の考え方も共通する。付属校の生徒が自分の空と観測画像を見比べる導入として DT-7（学びのツイン）・G-8（探究）に接続する'],
+     '観測地・日時を指定してその空に見える星座・天体を再現する。本デモの「全天カメラ」が用いているエール輝星星表（BSC5）・IAU 公式星座図形は、いずれもこのアプリのために整備されたデータをそのまま取り込んだもので、描画の考え方も共通する。付属校の生徒が自分の空と観測画像を見比べる導入として DT-7（学びのツイン）・G-8（探究）に接続する'],
     [el('span', null, [
       el('b', { text:'Cometarium（コメタリウム）' }), '　彗星ビューア', el('br'),
       el('span', { class:'refsub', text:'NU-SX (Shinsuke Abe) 2026　彗星の位置・光度・尾を物理モデルで描く' }), el('br'),

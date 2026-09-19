@@ -100,7 +100,7 @@ git add -A && git commit -m "Update NU-SORA demo" && git push
 - **Cometarium（コメタリウム）** — 彗星ビューア、NU-SX (Shinsuke Abe) 2026（[App Store](https://apps.apple.com/jp/app/id6801072934)）
 - 恒星カタログ：エール輝星星表 第5版（BSC5, Hoffleit & Warren 1991, CDS/VizieR V/50。パブリックドメイン、要出典表示）
 - 星座線：IAU 公式星座図形（Stellarium「modern_iau」スカイカルチャー, CC BY-SA 4.0）
-- 天の川：Tycho-2 の V<11.5 星数密度（Hog et al. 2000, CDS I/259）
+- 天の川：NASA/GSFC Scientific Visualization Studio「Deep Star Maps 2020」（SVS 4851, Ernie Wright, パブリックドメイン）の赤道座標版
 - 地図データ：dataofjapan/land（国土数値情報を簡略化）
 
 各文献のデモ内での対応は、デモの「このデモについて」画面および [`nu-sora/README.md`](nu-sora/README.md) を参照。

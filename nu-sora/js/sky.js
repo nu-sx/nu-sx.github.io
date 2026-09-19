@@ -39,6 +39,128 @@ NS.unpackSky = function () {
               ln:ln, la:la, lb:lb, mn:mn, mra:mra, msinD:msinD, mcosD:mcosD, mv:mv };
   return NS._sky;
 };
+/* ---------- 天の川（NASA/GSFC SVS「Deep Star Maps 2020」の全天星図） ----------
+   NASA/GSFC Scientific Visualization Studio "Deep Star Maps 2020"（SVS 4851, Ernie Wright）の
+   赤道座標版（ICRF/J2000・正距円筒図法・RA 0h が中央で左ほど RA が大きい）を
+   2048 × 1024 に縮小した JPEG。Hipparcos-2・Tycho-2・Gaia DR2 の 17 億個の星の位置・明るさ・色から
+   描かれたもので、天の川の濃淡も大小マゼラン雲も実データに基づく。
+   画素を直接読んで魚眼に貼るため、canvas が汚染される file:// 直開きでは読めない。
+   その場合は従来どおり Tycho-2 の星数密度グリッドに自動で戻す（ローカルサーバー経由で開けば星図が出る）。 */
+var SKY_BASE = (function () {
+  var sc = document.currentScript && document.currentScript.src;
+  return sc ? sc.replace(/js\/sky\.js.*$/, '') : '';
+})();
+NS.MW_FILE   = 'assets/sky/milkyway_nasa.jpg';
+NS.MW_GAIN   = 0.95;   /* 星図の明るさ → 画面の明るさ */
+NS.MW_BLACK  = 16;     /* 背景（未分解の暗い星）の下駄。これ以下は空の地色に任せる */
+
+NS.starMap = function (cb) {
+  var M = NS._mw;
+  if (M) {
+    if (M.state === 'loading' && cb) M.cbs.push(cb);
+    return M.state === 'ok' ? M : null;
+  }
+  M = NS._mw = { state:'loading', cbs:cb ? [cb] : [], data:null, w:0, h:0 };
+  var img = new Image();
+  img.onload = function () {
+    try {
+      var c = document.createElement('canvas');
+      c.width = img.naturalWidth; c.height = img.naturalHeight;
+      var g = c.getContext('2d', { willReadFrequently:true });
+      g.drawImage(img, 0, 0);
+      M.data = g.getImageData(0, 0, c.width, c.height).data;
+      M.w = c.width; M.h = c.height; M.state = 'ok';
+    } catch (e) {
+      M.state = 'tainted';
+      if (window.console && console.warn) {
+        console.warn('[NU-SORA] 天の川の星図を画素として読めないため Tycho-2 の星数密度で描く。' +
+                     'ローカルサーバー（例：python3 -m http.server）経由で開くと星図が有効になる。');
+      }
+    }
+    var cbs = M.cbs; M.cbs = []; cbs.forEach(function (f) { f(); });
+  };
+  img.onerror = function () {
+    M.state = 'missing';
+    var cbs = M.cbs; M.cbs = []; cbs.forEach(function (f) { f(); });
+  };
+  img.src = SKY_BASE + NS.MW_FILE;
+  return null;
+};
+
+/* 魚眼の各画素がどの赤経・赤緯を向くかは観測地の緯度だけで決まり、
+   日周運動は星図を横にずらすことに等しい。そこで向きは一度だけ計算して使い回し、
+   更新のたびに行うのは「地方恒星時ぶんの横ずらし＋双一次補間」だけにする。 */
+NS.mwLayer = function (latDeg, size, CX, CY, R, N) {
+  var buf = document.createElement('canvas');
+  buf.width = N; buf.height = N;
+  var bx = buf.getContext('2d');
+  var im = bx.createImageData(N, N), px = im.data;
+  var M = NS.starMap();
+  var W = M.w, H = M.h;
+  var cnt = 0;
+  var uBase = new Float32Array(N * N), ext = new Float32Array(N * N);
+  var row0 = new Int32Array(N * N), row1 = new Int32Array(N * N), wy = new Float32Array(N * N);
+  var dst = new Int32Array(N * N);
+  var la = latDeg * NS.d2r, sinLat = Math.sin(la), cosLat = Math.cos(la);
+  for (var iy = 0; iy < N; iy++) {
+    for (var ix = 0; ix < N; ix++) {
+      var x = (ix + 0.5) * size / N - CX, y = (iy + 0.5) * size / N - CY;
+      var r = Math.sqrt(x * x + y * y);
+      if (r > R) continue;
+      var alt = (1 - r / R) * 90;
+      if (alt < 1.0) continue;
+      var az = Math.atan2(-x, -y);                       /* fish() の逆変換（北が上・東が左） */
+      var sa = Math.sin(alt * NS.d2r), ca = Math.cos(alt * NS.d2r), caz = Math.cos(az);
+      var sinD = sa * sinLat + ca * cosLat * caz;
+      if (sinD > 1) sinD = 1; else if (sinD < -1) sinD = -1;
+      var dec = Math.asin(sinD) * NS.r2d;
+      var ha = Math.atan2(-Math.sin(az) * ca, sa * cosLat - ca * sinLat * caz) * NS.r2d;
+      /* RA = LST − HA、星図は RA 0h が中央で左ほど RA が大きい → u = ((180 − RA) / 360) */
+      uBase[cnt] = (180 + ha + 720) % 360;               /* ここから地方恒星時を引く */
+      var v = (90 - dec) / 180 * H - 0.5;
+      var y0 = Math.floor(v); var fy = v - y0;
+      if (y0 < 0) { y0 = 0; fy = 0; }
+      if (y0 > H - 2) { y0 = H - 2; fy = 1; }
+      row0[cnt] = y0 * W * 4; row1[cnt] = (y0 + 1) * W * 4; wy[cnt] = fy;
+      ext[cnt] = Math.pow(Math.max(0.06, sa), 0.45) *    /* 低空の大気減光 */
+                 Math.min(1, alt / 4);                    /* 地平線ぎわは切り上げない */
+      dst[cnt] = (iy * N + ix) * 4;
+      cnt++;
+    }
+  }
+  return {
+    node:buf, n:cnt,
+    draw:function (ctx2, lstDeg, gain) {
+      var d = NS._mw.data, k = gain * NS.MW_GAIN, ped = NS.MW_BLACK;
+      for (var i = 0; i < cnt; i++) {
+        var u = uBase[i] - lstDeg;
+        u -= 360 * Math.floor(u / 360);
+        var xf = u * W / 360;
+        var x0 = xf | 0; if (x0 >= W) x0 = W - 1;
+        var fx = xf - x0, x1 = x0 + 1 === W ? 0 : x0 + 1;
+        var o00 = row0[i] + x0 * 4, o01 = row0[i] + x1 * 4;
+        var o10 = row1[i] + x0 * 4, o11 = row1[i] + x1 * 4;
+        var fy = wy[i], w00 = (1 - fx) * (1 - fy), w01 = fx * (1 - fy), w10 = (1 - fx) * fy, w11 = fx * fy;
+        var a = k * ext[i], o = dst[i];
+        var cr = d[o00] * w00 + d[o01] * w01 + d[o10] * w10 + d[o11] * w11 - ped;
+        var cg = d[o00 + 1] * w00 + d[o01 + 1] * w01 + d[o10 + 1] * w10 + d[o11 + 1] * w11 - ped;
+        var cb = d[o00 + 2] * w00 + d[o01 + 2] * w01 + d[o10 + 2] * w10 + d[o11 + 2] * w11 - ped;
+        px[o]     = cr > 0 ? cr * a : 0;
+        px[o + 1] = cg > 0 ? cg * a : 0;
+        px[o + 2] = cb > 0 ? cb * a : 0;
+        px[o + 3] = 255;
+      }
+      bx.putImageData(im, 0, 0);
+      ctx2.save();
+      ctx2.globalCompositeOperation = 'lighter';
+      ctx2.imageSmoothingEnabled = true;
+      if ('imageSmoothingQuality' in ctx2) ctx2.imageSmoothingQuality = 'high';
+      ctx2.drawImage(buf, 0, 0, N, N, 0, 0, size, size);
+      ctx2.restore();
+    }
+  };
+};
+
 /* 固有名（和名）を持つ明るい星を、位置でカタログに突き合わせて索引を作る */
 NS.starNameIndex = function () {
   if (NS._nameIdx) return NS._nameIdx;
@@ -126,6 +248,10 @@ NS.AllSky = function (station, opts) {
             speed:opts.speed || 1, meteors:[], sats:[], t0:NS.now(), started:performance.now() };
   var ctx = cv.getContext('2d');
   var CX = size / 2, CY = size / 2, R = size * 0.468;
+  /* 天の川の星図を貼る作業用バッファの一辺。表示サイズに合わせて粗くしすぎない程度に取る */
+  var MWN = Math.max(120, Math.min(384, Math.round(size * 0.9)));
+  /* 星図は非同期に届く。届いたら背景を作り直す */
+  NS.starMap(function () { A._bgKey = null; if (!A.running) A.render(); });
   /* 恒星・天の川は毎フレーム描くと重いので、天球が 1/12 度回るごとにだけ描き直して使い回す */
   var bg = document.createElement('canvas');
   bg.width = cv.width; bg.height = cv.height;
@@ -162,7 +288,7 @@ NS.AllSky = function (station, opts) {
     var vis = night ? 1 : dusk ? Math.max(0, (-w.sunAlt) / 12) : 0;
     var limMag = night ? (st.sqm - 14.5) : 1.2;   /* 高感度全天カメラの限界等級の代用 */
 
-    /* ---- 天の川（Tycho-2 の星数密度グリッド） ---- */
+    /* ---- 天の川（NASA Deep Star Maps 2020。読めないときは Tycho-2 の星数密度） ---- */
     var sky = NS.unpackSky();
     var la = st.lat * NS.d2r, sinLat = Math.sin(la), cosLat = Math.cos(la);
     var altaz = function (raDeg, sinD, cosD) {
@@ -174,20 +300,27 @@ NS.AllSky = function (station, opts) {
       return [alt, (az + 360) % 360];
     };
     if (vis > 0.2) {
-      var mwStep = size >= 360 ? 1 : 2;
       var mwGain = vis * (0.30 + 0.55 * (1 - lp)) * (1 - w.cloud * 0.85);
-      var cell = (R / 90) * (mwStep === 1 ? 1.75 : 3.0);
-      for (var mi = 0; mi < sky.mn; mi += mwStep) {
-        var mh = altaz(sky.mra[mi], sky.msinD[mi], sky.mcosD[mi]);
-        if (!mh || mh[0] < 2) continue;
-        /* 低空は大気減光で急速に暗くなる */
-        var mext = Math.pow(Math.max(0.06, Math.sin(mh[0] * NS.d2r)), 0.45);
-        var a2 = Math.pow(sky.mv[mi], 2.4) * mwGain * 0.22 * mext;
-        if (a2 <= 0.006) continue;
-        var mxy = fish(mh[0], mh[1]);
-        var msz = cell;
-        bctx.fillStyle = 'rgba(198,208,232,' + a2.toFixed(3) + ')';
-        bctx.fillRect(mxy[0] - msz / 2, mxy[1] - msz / 2, msz, msz);
+      if (NS.starMap()) {
+        /* NASA Deep Star Maps 2020 を魚眼に貼る */
+        if (!A._mwL) A._mwL = NS.mwLayer(st.lat, size, CX, CY, R, MWN);
+        A._mwL.draw(bctx, lst, mwGain);
+      } else {
+        /* 星図が使えないとき（file:// 直開きなど）の代替：Tycho-2 の星数密度グリッド */
+        var mwStep = size >= 360 ? 1 : 2;
+        var cell = (R / 90) * (mwStep === 1 ? 1.75 : 3.0);
+        for (var mi = 0; mi < sky.mn; mi += mwStep) {
+          var mh = altaz(sky.mra[mi], sky.msinD[mi], sky.mcosD[mi]);
+          if (!mh || mh[0] < 2) continue;
+          /* 低空は大気減光で急速に暗くなる */
+          var mext = Math.pow(Math.max(0.06, Math.sin(mh[0] * NS.d2r)), 0.45);
+          var a2 = Math.pow(sky.mv[mi], 2.4) * mwGain * 0.22 * mext;
+          if (a2 <= 0.006) continue;
+          var mxy = fish(mh[0], mh[1]);
+          var msz = cell;
+          bctx.fillStyle = 'rgba(198,208,232,' + a2.toFixed(3) + ')';
+          bctx.fillRect(mxy[0] - msz / 2, mxy[1] - msz / 2, msz, msz);
+        }
       }
     }
     /* ---- 星座線（IAU 公式星座図形） ---- */

@@ -58,11 +58,11 @@ AL.ST = {
     lat: 35.7972, lon: 137.6256, elev: 1130,
     color: 'var(--series-2)', hex: '#d95926',
     cam: 'Canon ME20F-SH（モノクロ・フルサイズ）', lensNote: '24 mm F1.4',
-    az: 50, el: 40, fl: 24,         /* 北東・仰角 40°（固定の基準） */
+    az: 50, el: 45, fl: 24,         /* 北東・仰角 45°（固定の基準） */
     sqm: 21.3, baseRate: 55, disk: 8192, diskBase: 0.38, pc: '制御 PC（Windows 11 / UFOCapture HD2）',
     net: '観測所回線（VPN）', bw: 100, bwNote: '他の観測装置と共用。夜間は譲る前提',
     since: '2021-10',
-    note: '西側の局。方位 50°・仰角 40° に固定して運用する。この向きを基準に、他の 2 局の向きを決めた。'
+    note: '西側の局。方位 50°・仰角 45° に固定して運用する。この向きを基準に、他の 2 局の向きを決めた。'
   },
   AKN: {
     id: 'AKN', name: '明野', full: '東京大学宇宙線研究所 明野観測所',
@@ -90,9 +90,9 @@ AL.setAim = function (st, a) {
   if (a.fl != null) st.fl = AL.clamp(a.fl, 8, 135);
   return st;
 };
-/* 既定の向き：木曽を 方位 50°・仰角 35° に固定し、残る 2 局を
+/* 既定の向き：木曽を 方位 50°・仰角 45° に固定し、残る 2 局を
    「2 局以上でカバーされる面積」が最大になるように探索した値（高度 100 km、有効範囲 天頂角 70°）。 */
-AL.aimDefaults = { FNB: { az: 22, el: 48.6, fl: 24 }, KSO: { az: 50, el: 40, fl: 24 }, AKN: { az: 32, el: 46.6, fl: 24 } };
+AL.aimDefaults = { FNB: { az: 22, el: 48.6, fl: 24 }, KSO: { az: 50, el: 45, fl: 24 }, AKN: { az: 32, el: 46.6, fl: 24 } };
 AL.resetAim = function () { AL.STL.forEach(function (id) { AL.setAim(AL.ST[id], AL.aimDefaults[id]); }); };
 /* ---------- 観測局とのデータのやり取り（設計値） ---------- */
 AL.LINK = {

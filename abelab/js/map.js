@@ -35,24 +35,73 @@ AL.unproj = function (px, py) {
 };
 AL.MAPW = W; AL.MAPH = H;
 
+/* 世界の海岸線・国境（js/geo-world50.js）。可変長の差分符号をほどく。
+   日本の外まで引いたときの地理の手がかりに使う。 */
+var w50 = null;
+function world50() {
+  if (w50) return w50;
+  var G = window.GEO_W50;
+  if (!G) return (w50 = { land: [], bord: [] });
+  function take(str) {
+    var i = 0, out = [];
+    function num() {
+      var r = 0, sh = 0, c;
+      do { c = str.charCodeAt(i++) - 63; r |= (c & 0x1f) << sh; sh += 5; } while (c >= 0x20);
+      return (r & 1) ? ~(r >> 1) : (r >> 1);
+    }
+    while (i < str.length) {
+      var n = num(), line = [], px = 0, py = 0;
+      for (var k = 0; k < n; k++) { px += num(); py += num(); line.push([px * G.q, py * G.q]); }
+      out.push(line);
+    }
+    return out;
+  }
+  w50 = { land: take(G.l), bord: take(G.b) };
+  return w50;
+}
+
 /* ================= 地図 ================= */
 AL.Map = function (opts) {
   opts = opts || {};
   var M = {};
   var svg = AL.s('svg', { class: 'jmap', viewBox: '0 0 ' + W + ' ' + H, preserveAspectRatio: 'xMidYMid meet' });
-  var gSea = AL.s('rect', { x: 0, y: 0, width: W, height: H, class: 'm-sea' });
+  /* 海は世界全体を覆う大きさにしておく（引いたときに背景が抜けないように） */
+  var wx0 = AL.proj(-180, 0)[0], wx1 = AL.proj(180, 0)[0];
+  var wy0 = AL.proj(0, 84)[1], wy1 = AL.proj(0, -84)[1];
+  var gSea = AL.s('rect', { x: wx0, y: wy0, width: wx1 - wx0, height: wy1 - wy0, class: 'm-sea' });
+  var gWorld = AL.s('g', { class: 'm-world' });
   var gSat = AL.s('g', { class: 'm-sat' });
   var gLand = AL.s('g', { class: 'm-land' });
   var gGrid = AL.s('g', { class: 'm-grid' });
   var gFov = AL.s('g', { class: 'm-fov' });
   var gOv = AL.s('g', { class: 'm-ov' });
   var gSt = AL.s('g', { class: 'm-st' });
-  [gSea, gSat, gLand, gGrid, gFov, gOv, gSt].forEach(function (g) { svg.appendChild(g); });
+  [gSea, gSat, gWorld, gLand, gGrid, gFov, gOv, gSt].forEach(function (g) { svg.appendChild(g); });
   var wrap = AL.el('div', { class: 'mapwrap' }, [svg]);
   M.node = wrap; M.svg = svg;
   M.layers = { sat: gSat, fov: gFov, ov: gOv, st: gSt };
 
-  /* 陸地 */
+  /* 世界の陸地（粗い）。日本の詳しい境界をこの上に重ねるので、引いたときだけ効いてくる */
+  (function () {
+    var w = world50();
+    [[w.land, 'wl', true], [w.bord, 'wb', false]].forEach(function (set) {
+      set[0].forEach(function (line) {
+        if (line.length < 2) return;
+        var d = '', seen = false;
+        for (var i = 0; i < line.length; i++) {
+          var lat = line[i][1];
+          if (lat > 84 || lat < -84) { seen = false; continue; }
+          var xy = AL.proj(line[i][0], lat);
+          d += (seen ? 'L' : 'M') + xy[0].toFixed(1) + ' ' + xy[1].toFixed(1);
+          seen = true;
+        }
+        if (d) gWorld.appendChild(AL.s('path', { d: d + (set[2] ? 'Z' : ''), class: set[1],
+          'vector-effect': 'non-scaling-stroke' }));
+      });
+    });
+  })();
+
+  /* 日本の都道府県境界（詳しい） */
   (window.GEO_JAPAN || []).forEach(function (pref) {
     pref.r.forEach(function (ring) {
       if (ring.length < 4) return;
@@ -65,27 +114,45 @@ AL.Map = function (opts) {
         [AL.s('title', { text: pref.n })]));
     });
   });
-  /* 経緯線 */
-  for (var la = 32; la <= 44; la += 1) {
-    var a = AL.proj(BOX.lon0, la), b = AL.proj(BOX.lon1, la);
-    gGrid.appendChild(AL.s('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], class: 'gl' }));
-    gGrid.appendChild(AL.s('text', { x: a[0] + 4, y: a[1] - 3, class: 'gt', text: la + '°N' }));
-  }
-  for (var lo = 128; lo <= 146; lo += 1) {
-    var c = AL.proj(lo, BOX.lat0), d2 = AL.proj(lo, BOX.lat1);
-    gGrid.appendChild(AL.s('line', { x1: c[0], y1: c[1], x2: d2[0], y2: d2[1], class: 'gl' }));
-    gGrid.appendChild(AL.s('text', { x: c[0] + 3, y: c[1] - 4, class: 'gt', text: lo + '°E' }));
+  /* 経緯線は見えている範囲と縮尺にあわせて引き直す */
+  function drawGrid() {
+    while (gGrid.firstChild) gGrid.removeChild(gGrid.firstChild);
+    var lo = AL.unproj(vb.x, vb.y + vb.h), hi = AL.unproj(vb.x + vb.w, vb.y);
+    var span = hi.lon - lo.lon;
+    var step = [0.5, 1, 2, 5, 10, 20, 30, 60].filter(function (v) { return span / v <= 14; })[0] || 60;
+    var la0 = Math.max(-84, Math.floor(lo.lat / step) * step), la1 = Math.min(84, hi.lat + step);
+    var lo0 = Math.floor(lo.lon / step) * step, lo1 = hi.lon + step;
+    var x0 = AL.proj(lo0 - step, 0)[0], x1 = AL.proj(lo1, 0)[0];
+    for (var la = la0; la <= la1; la += step) {
+      var a = AL.proj(lo0 - step, la), b = AL.proj(lo1, la);
+      gGrid.appendChild(AL.s('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], class: 'gl' }));
+      gGrid.appendChild(AL.s('text', { x: vb.x + vb.w * 0.004, y: a[1] - vb.h * 0.004, class: 'gt',
+        text: AL.f(Math.abs(la), step < 1 ? 1 : 0) + '°' + (la < 0 ? 'S' : 'N') }));
+    }
+    for (var ln = lo0; ln <= lo1; ln += step) {
+      var c = AL.proj(ln, Math.max(-84, la0 - step)), d2 = AL.proj(ln, Math.min(84, la1));
+      gGrid.appendChild(AL.s('line', { x1: c[0], y1: c[1], x2: d2[0], y2: d2[1], class: 'gl' }));
+      var lonLab = ((ln + 180) % 360 + 360) % 360 - 180;
+      gGrid.appendChild(AL.s('text', { x: c[0] + vb.w * 0.003, y: vb.y + vb.h * 0.028, class: 'gt',
+        text: AL.f(Math.abs(lonLab), step < 1 ? 1 : 0) + '°' + (lonLab < 0 ? 'W' : 'E') }));
+    }
+    gGrid.setAttribute('font-size', (vb.w / 1000 * 5.5).toFixed(2));
   }
 
   var vb = { x: 0, y: 0, w: W, h: H };
   function apply() {
     svg.setAttribute('viewBox', vb.x + ' ' + vb.y + ' ' + vb.w + ' ' + vb.h);
     svg.style.setProperty('--mk', Math.max(0.05, Math.min(2.6, vb.w / W)).toFixed(3));
-    gGrid.setAttribute('opacity', vb.w < W * 0.5 ? 0.9 : 0.5);
+    drawGrid();
+    gGrid.setAttribute('opacity', vb.w < W * 0.5 ? 0.9 : 0.55);
+    /* 日本の詳しい境界は、引きすぎたら粗い世界の海岸線に任せる */
+    gLand.setAttribute('opacity', vb.w > W * 6 ? 0 : 1);
+    gWorld.setAttribute('opacity', vb.w < W * 0.6 ? 0 : 1);
     if (M.sat) M.sat.update();
     if (M.onView) M.onView(vb);
   }
   M.viewBox = function () { return vb; };
+  M.goHome = function () { if (M.home) { vb = { x: M.home.x, y: M.home.y, w: M.home.w, h: M.home.h }; apply(); } };
   /* viewBox の 1 単位が画面で何画素か。記号や文字を一定の大きさに見せるのに使う */
   M.unit = function () { return (wrap.clientWidth || W) / vb.w; };
   /* 画面座標 → 地図のユーザー座標・緯度経度（向きをマウスで変えるのに使う） */
@@ -107,9 +174,11 @@ AL.Map = function (opts) {
     var ar = (wrap.clientWidth && wrap.clientHeight) ? wrap.clientWidth / wrap.clientHeight : W / H;
     if (cw / ch < ar) cw = ch * ar; else ch = cw / ar;
     vb = { x: (x0 + x1) / 2 - cw / 2, y: (y0 + y1) / 2 - ch / 2, w: cw, h: ch };
+    M.home = { x: vb.x, y: vb.y, w: vb.w, h: vb.h };
     apply();
   };
   M.redraw = apply;
+  M.home = null;                       /* 直近の fit を覚えておき、引きすぎたときに戻れるようにする */
 
   /* ズーム・パン */
   svg.addEventListener('wheel', function (e) {
@@ -118,7 +187,8 @@ AL.Map = function (opts) {
     var mx = vb.x + (e.clientX - r.left) / r.width * vb.w, my = vb.y + (e.clientY - r.top) / r.height * vb.h;
     var k = Math.exp(e.deltaY * 0.0016);
     var ar0 = vb.w / vb.h;                       /* 表示中の縦横比を保つ */
-    var nw = Math.max(W * 0.01, Math.min(W * 1.4, vb.w * k)), nh = nw / ar0;
+    /* 日本の一部から東アジア・太平洋の広がりまで引けるようにする */
+    var nw = Math.max(W * 0.01, Math.min(W * 15, vb.w * k)), nh = nw / ar0;
     vb = { x: mx - (mx - vb.x) * (nw / vb.w), y: my - (my - vb.y) * (nh / vb.h), w: nw, h: nh };
     apply();
   }, { passive: false });

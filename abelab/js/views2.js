@@ -214,17 +214,29 @@ AL.V.pairs = function (root, ui) {
     el('option', { value: 'triple', text: '3 局共通' }),
     el('option', { value: 'union', text: '1 局以上でカバー' })
   ]);
-  var selFix = el('select', null, AL.STL.map(function (id) {
-    return el('option', { value: id, text: AL.st(id).name + 'を固定', selected: id === 'KSO' ? '' : null });
-  }).concat([el('option', { value: '', text: '固定しない' })]));
+  /* 固定する局は複数選べる（木曽と船橋を固定して明野だけ動かす、といった使い方のため） */
+  var fixState = { FNB: true, KSO: true, AKN: false };
+  function fixChip(id) {
+    var st = AL.st(id);
+    return el('button', { class: 'chip', 'aria-pressed': String(!!fixState[id]), title: st.name + '局を固定する',
+      onclick: function (e) {
+        if (!fixState[id] && AL.STL.filter(function (x) { return !fixState[x]; }).length <= 1) return;  /* 全部は固定できない */
+        fixState[id] = !fixState[id];
+        e.currentTarget.setAttribute('aria-pressed', String(fixState[id]));
+      } }, [el('span', { class: 'swatch', style: { background: st.hex } }), st.name]);
+  }
   var inZa = el('input', { type: 'number', value: AL.USABLE.maxZa, min: 40, max: 85, step: 1,
     oninput: function () { AL.USABLE.maxZa = AL.clamp(+inZa.value || 70, 40, 85); redrawAll(); } });
   function runOpt() {
-    var fix = selFix.value, free = AL.STL.filter(function (id) { return id !== fix; });
+    var fix = AL.STL.filter(function (id) { return fixState[id]; });
+    var free = AL.STL.filter(function (id) { return !fixState[id]; });
+    if (!free.length) { optOut.textContent = '動かせる局がない。固定を 1 つ外すこと。'; return; }
     var before = AL.coverage(AL.STL.map(AL.st), curAlt)[selObj.value];
     var t0 = performance.now();
-    var r = AL.optimizeAim({ fixed: fix ? [fix] : [], free: free, h: curAlt,
-      objective: selObj.value, azStep: 3, elStep: 1.5 });
+    /* 動かすのが 1 局だけなら総当たりで厳密に、2 局以上なら格子を粗くして反復で詰める */
+    var fine = free.length === 1;
+    var r = AL.optimizeAim({ fixed: fix, free: free, h: curAlt, objective: selObj.value,
+      azStep: fine ? 1 : 3, elStep: fine ? 0.5 : 1.5, passes: fine ? 1 : 6 });
     free.forEach(function (id) { AL.setAim(AL.st(id), r.aims[id]); });
     redrawAll();
     optOut.innerHTML = '高度 ' + curAlt + ' km で ' + selObj.options[selObj.selectedIndex].text +
@@ -426,13 +438,13 @@ AL.V.pairs = function (root, ui) {
   AL.add(aimBody, [aimHost, covHost,
     el('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center', marginTop: '8px' } }, [
       el('span', { class: 'ctl' }, [selObj]),
-      el('span', { class: 'ctl' }, [selFix]),
+      el('span', { class: 'ctl' }, ['固定'].concat(AL.STL.map(fixChip))),
       el('span', { class: 'ctl numin' }, ['有効範囲 天頂角', inZa, el('i', { text: '°' })]),
       el('button', { class: 'btn', text: '最適化', onclick: runOpt })
     ]), optOut, pairHost, el('div', { class: 'note', style: { marginTop: '8px' },
     text: '既定は 35 mm フルサイズに 24 mm レンズ（画角 73.7° × 53.1°）。' +
-          '木曽を 方位 50°・仰角 45° に固定し、残る 2 局は「2 局以上でカバーされる面積」が' +
-          '最大になる向き（明野 方位 32°・仰角 46.6°、船橋 方位 22°・仰角 48.6°）を探索して既定にした。' +
+          '木曽（方位 50°・仰角 38°）と船橋（方位 0°・仰角 47°）を固定し、明野は「2 局以上で' +
+          'カバーされる面積」が最大になる向き（方位 25°・仰角 46.5°）を総当たりで求めて既定にした。' +
           '塗りは有効範囲（天頂角 ' + AL.USABLE.maxZa + '° まで）、破線は視野全体。' +
           '地図の視野をドラッグで向き、右端の ○ を横へドラッグで画角が変わる。ダブルクリックで既定に戻る。' })]);
   g.appendChild(p3); g.appendChild(p4);

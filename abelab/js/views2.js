@@ -174,7 +174,7 @@ AL.V.pairs = function (root, ui) {
 
   /* ================= 日本地図（向きと画角をマウスで変えられる）================= */
   var p3 = panel('視野の投影（日本地図）', { col: 'c8', right: [],
-    note: '視野をドラッグで向きを変え、右端の ○ をドラッグで画角を変える' });
+    note: '視野をドラッグで向きを変え、右端の ○ をドラッグで画角を変える。ホイールで東アジア〜太平洋まで引ける' });
   var p4 = panel('カメラの向きと画角', { col: 'c4', right: [] });
   var aimBody = p4.querySelector('.body');
   var mapBody = p3.querySelector('.body');
@@ -201,7 +201,9 @@ AL.V.pairs = function (root, ui) {
     oninput: function () { sat.setOpacity(opa.value / 100); } });
   AL.add(p3.querySelector('header .right'), [
     el('span', { class: 'ctl' }, ['高度', selAlt]),
-    el('span', { class: 'ctl' }, ['気象衛星', selBand, opa])
+    el('span', { class: 'ctl' }, ['気象衛星', selBand, opa]),
+    el('button', { class: 'btn', text: '局に合わせる', title: '3 局の視野が収まる範囲に戻す',
+      onclick: function () { M.goHome(); } })
   ]);
   AL.add(p4.querySelector('header .right'), [
     el('button', { class: 'btn', text: '既定に戻す', onclick: function () { AL.resetAim(); redrawAll(true); } })

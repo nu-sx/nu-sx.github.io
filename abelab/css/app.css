@@ -226,6 +226,8 @@ svg.jmap { display: block; width: 100%; height: 100%; cursor: grab; touch-action
 svg.jmap.grabbing { cursor: grabbing; }
 .m-sea { fill: #0c1118; }
 .m-pref { fill: #171c22; stroke: #39424d; stroke-width: 0.9; }
+.m-world path.wl { fill: #151c23; stroke: #3d4855; stroke-width: 0.9; }
+.m-world path.wb { fill: none; stroke: #2b333d; stroke-width: 0.6; }
 .m-grid .gl { stroke: rgba(255,255,255,.055); stroke-width: 0.6; vector-effect: non-scaling-stroke; }
 .m-grid .gt { fill: #5e656e; font-family: var(--mono); }
 .m-fov polygon { fill-opacity: .14; stroke-width: 1.4; vector-effect: non-scaling-stroke; }

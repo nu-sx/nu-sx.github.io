@@ -206,6 +206,34 @@ AL.V.pairs = function (root, ui) {
   AL.add(p4.querySelector('header .right'), [
     el('button', { class: 'btn', text: '既定に戻す', onclick: function () { AL.resetAim(); redrawAll(true); } })
   ]);
+  /* --- カバー面積と最適化 --- */
+  var covHost = el('div', { style: { marginTop: '10px' } });
+  var optOut = el('div', { class: 'note', style: { marginTop: '6px' } });
+  var selObj = el('select', null, [
+    el('option', { value: 'atLeast2', text: '2 局以上でカバー' }),
+    el('option', { value: 'triple', text: '3 局共通' }),
+    el('option', { value: 'union', text: '1 局以上でカバー' })
+  ]);
+  var selFix = el('select', null, AL.STL.map(function (id) {
+    return el('option', { value: id, text: AL.st(id).name + 'を固定', selected: id === 'KSO' ? '' : null });
+  }).concat([el('option', { value: '', text: '固定しない' })]));
+  var inZa = el('input', { type: 'number', value: AL.USABLE.maxZa, min: 40, max: 85, step: 1,
+    oninput: function () { AL.USABLE.maxZa = AL.clamp(+inZa.value || 70, 40, 85); redrawAll(); } });
+  function runOpt() {
+    var fix = selFix.value, free = AL.STL.filter(function (id) { return id !== fix; });
+    var before = AL.coverage(AL.STL.map(AL.st), curAlt)[selObj.value];
+    var t0 = performance.now();
+    var r = AL.optimizeAim({ fixed: fix ? [fix] : [], free: free, h: curAlt,
+      objective: selObj.value, minEdgeEl: -20 });
+    free.forEach(function (id) { AL.setAim(AL.st(id), r.aims[id]); });
+    redrawAll();
+    optOut.innerHTML = '高度 ' + curAlt + ' km で ' + selObj.options[selObj.selectedIndex].text +
+      ' を最大化した（' + Math.round(performance.now() - t0) + ' ms）。' +
+      AL.int(before) + ' → <b>' + AL.int(r.value) + ' km²</b>　' +
+      free.map(function (id) {
+        return AL.st(id).name + ' 方位 ' + AL.f(r.aims[id].az, 0) + '°・仰角 ' + AL.f(r.aims[id].el, 1) + '°';
+      }).join('／');
+  }
 
   function clearG(x) { while (x.firstChild) x.removeChild(x.firstChild); }
   function toLL(ne, ref) { return AL.neToLatLon(ne, ref); }
@@ -257,6 +285,11 @@ AL.V.pairs = function (root, ui) {
     var all = [];
     AL.STL.forEach(function (id) {
       var st = AL.st(id);
+      /* 視野全体（天頂角 85° まで）は破線の輪郭だけ。大気減光で使えない低空が見える */
+      var full = AL.footprintPoly(st, curAlt, null, 85).map(function (ne) { return toLL(ne, st); });
+      if (AL.lowerEdgeEl(st) < 90 - AL.USABLE.maxZa - 0.5)
+        polyEl(M.layers.fov, full, { fill: 'none', stroke: st.hex, 'stroke-opacity': .45,
+          'stroke-dasharray': '4 4', class: 'fullfov' });
       var pts = AL.footprintPoly(st, curAlt).map(function (ne) { return toLL(ne, st); });
       var pe = polyEl(M.layers.fov, pts, { fill: st.hex, stroke: st.hex, 'data-st': id });
       pe.style.cursor = 'move';
@@ -361,9 +394,19 @@ AL.V.pairs = function (root, ui) {
     AL.add(pairHost, AL.table(['組', ['基線長', 'num'], '高度 ' + curAlt + ' km', ['重なり', 'num'], ['面積', 'num']], rows, { scroll: false }));
   }
 
+  function drawCov() {
+    AL.clear(covHost);
+    var c = AL.coverage(AL.STL.map(AL.st), curAlt);
+    AL.add(covHost, AL.table(['カバー面積（高度 ' + curAlt + ' km）', ['面積', 'num'], ['用途', '']], [
+      ['1 局以上', AL.int(c.union) + ' km²', '単独検出（軌道は出ない）'],
+      ['2 局以上', AL.int(c.atLeast2) + ' km²', '同時観測。高度・速度・軌道が出る'],
+      ['3 局共通', AL.int(c.triple) + ' km²', '幾何が過剰決定。誤差を評価できる']
+    ], { scroll: false }));
+  }
   function redrawAll(refit) {
     drawMap(refit);
     drawAim();
+    drawCov();
     drawPairs();
     var tri = AL.commonVolume(AL.STL, curAlt);
     var ka = AL.overlapAt('KSO', 'AKN', curAlt);
@@ -378,11 +421,20 @@ AL.V.pairs = function (root, ui) {
     '気象衛星はひまわりの実データ（気象庁）。選んだときだけ取得する。', status
   ])]);
   C.legend(mapBody, AL.STL.map(function (id) { return { name: AL.st(id).name + 'の視野', color: AL.st(id).hex }; })
-    .concat([{ name: '2 局の重なり', color: 'rgba(255,255,255,.28)' }, { name: '3 局共通', color: 'rgba(250,178,25,.55)' }]), { square: true });
-  AL.add(aimBody, [aimHost, pairHost, el('div', { class: 'note', style: { marginTop: '8px' },
-    text: '既定は 35 mm フルサイズに 24 mm レンズ（画角 73.7° × 53.1°）、仰角 45°、' +
-          '木曽は北東・明野は北西・船橋は北北西。地図の視野をドラッグすると向きが変わり、' +
-          '右端の ○ を横へドラッグすると焦点距離（画角）が変わる。視野をダブルクリックで既定に戻る。' })]);
+    .concat([{ name: '2 局の重なり', color: 'rgba(255,255,255,.28)' },
+              { name: '3 局共通', color: 'rgba(250,178,25,.55)' }]), { square: true });
+  AL.add(aimBody, [aimHost, covHost,
+    el('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center', marginTop: '8px' } }, [
+      el('span', { class: 'ctl' }, [selObj]),
+      el('span', { class: 'ctl' }, [selFix]),
+      el('span', { class: 'ctl numin' }, ['有効範囲 天頂角', inZa, el('i', { text: '°' })]),
+      el('button', { class: 'btn', text: '最適化', onclick: runOpt })
+    ]), optOut, pairHost, el('div', { class: 'note', style: { marginTop: '8px' },
+    text: '既定は 35 mm フルサイズに 24 mm レンズ（画角 73.7° × 53.1°）。' +
+          '木曽を 方位 50°・仰角 35° に固定し、残る 2 局は「2 局以上でカバーされる面積」が' +
+          '最大になる向き（明野 方位 35°・仰角 46.6°、船橋 方位 20°・仰角 46.6°）を探索して既定にした。' +
+          '塗りは有効範囲（天頂角 ' + AL.USABLE.maxZa + '° まで）、破線は視野全体。' +
+          '地図の視野をドラッグで向き、右端の ○ を横へドラッグで画角が変わる。ダブルクリックで既定に戻る。' })]);
   g.appendChild(p3); g.appendChild(p4);
   redrawAll(true);
   setTimeout(function () { redrawAll(true); }, 0);

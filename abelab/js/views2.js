@@ -224,7 +224,7 @@ AL.V.pairs = function (root, ui) {
     var before = AL.coverage(AL.STL.map(AL.st), curAlt)[selObj.value];
     var t0 = performance.now();
     var r = AL.optimizeAim({ fixed: fix ? [fix] : [], free: free, h: curAlt,
-      objective: selObj.value, minEdgeEl: -20 });
+      objective: selObj.value, azStep: 3, elStep: 1.5 });
     free.forEach(function (id) { AL.setAim(AL.st(id), r.aims[id]); });
     redrawAll();
     optOut.innerHTML = '高度 ' + curAlt + ' km で ' + selObj.options[selObj.selectedIndex].text +
@@ -431,8 +431,8 @@ AL.V.pairs = function (root, ui) {
       el('button', { class: 'btn', text: '最適化', onclick: runOpt })
     ]), optOut, pairHost, el('div', { class: 'note', style: { marginTop: '8px' },
     text: '既定は 35 mm フルサイズに 24 mm レンズ（画角 73.7° × 53.1°）。' +
-          '木曽を 方位 50°・仰角 35° に固定し、残る 2 局は「2 局以上でカバーされる面積」が' +
-          '最大になる向き（明野 方位 35°・仰角 46.6°、船橋 方位 20°・仰角 46.6°）を探索して既定にした。' +
+          '木曽を 方位 50°・仰角 40° に固定し、残る 2 局は「2 局以上でカバーされる面積」が' +
+          '最大になる向き（明野 方位 32°・仰角 46.6°、船橋 方位 22°・仰角 48.6°）を探索して既定にした。' +
           '塗りは有効範囲（天頂角 ' + AL.USABLE.maxZa + '° まで）、破線は視野全体。' +
           '地図の視野をドラッグで向き、右端の ○ を横へドラッグで画角が変わる。ダブルクリックで既定に戻る。' })]);
   g.appendChild(p3); g.appendChild(p4);

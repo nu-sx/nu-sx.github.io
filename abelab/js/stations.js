@@ -45,11 +45,11 @@ AL.ST = {
     lat: 35.7236, lon: 140.0369, elev: 25,
     color: 'var(--series-1)', hex: '#3987e5',
     cam: 'Canon ME20F-SHN（カラー・フルサイズ）', lensNote: '24 mm F1.4',
-    az: 20, el: 46.6, fl: 24,       /* 北北東。木曽を固定してカバー面積を最大にした値 */
+    az: 22, el: 48.6, fl: 24,       /* 北北東。木曽を固定してカバー面積を最大にした値 */
     sqm: 18.6, baseRate: 22, disk: 4096, diskBase: 0.84, pc: '制御 PC（Windows 11 / UFOCapture HD2）',
     net: '学内 LAN 1 Gbps', bw: 700, bwNote: '学内幹線。昼夜とも空いている',
     since: '2026-04',
-    note: '開発・試験と火球監視を兼ねる都市部の局。北北東・仰角 46.6° で、山岳 2 局と同じ空を見込む。' +
+    note: '開発・試験と火球監視を兼ねる都市部の局。北北東・仰角 48.6° で、山岳 2 局と同じ空を見込む。' +
           '光害が大きく限界等級は浅いが、機材更新とトリガー調整をここで詰めてから山岳の 2 局へ展開する。'
   },
   KSO: {
@@ -58,11 +58,11 @@ AL.ST = {
     lat: 35.7972, lon: 137.6256, elev: 1130,
     color: 'var(--series-2)', hex: '#d95926',
     cam: 'Canon ME20F-SH（モノクロ・フルサイズ）', lensNote: '24 mm F1.4',
-    az: 50, el: 35, fl: 24,         /* 北東・仰角 35°（固定の基準） */
+    az: 50, el: 40, fl: 24,         /* 北東・仰角 40°（固定の基準） */
     sqm: 21.3, baseRate: 55, disk: 8192, diskBase: 0.38, pc: '制御 PC（Windows 11 / UFOCapture HD2）',
     net: '観測所回線（VPN）', bw: 100, bwNote: '他の観測装置と共用。夜間は譲る前提',
     since: '2021-10',
-    note: '西側の局。方位 50°・仰角 35° に固定して運用する。この向きを基準に、他の 2 局の向きを決めた。'
+    note: '西側の局。方位 50°・仰角 40° に固定して運用する。この向きを基準に、他の 2 局の向きを決めた。'
   },
   AKN: {
     id: 'AKN', name: '明野', full: '東京大学宇宙線研究所 明野観測所',
@@ -70,11 +70,11 @@ AL.ST = {
     lat: 35.7833, lon: 138.5000, elev: 900,
     color: 'var(--series-3)', hex: '#199e70',
     cam: 'Canon ME20F-SH（モノクロ・フルサイズ）', lensNote: '24 mm F1.4',
-    az: 35, el: 46.6, fl: 24,       /* 北東。木曽を固定してカバー面積を最大にした値 */
+    az: 32, el: 46.6, fl: 24,       /* 北北東。木曽を固定してカバー面積を最大にした値 */
     sqm: 21.0, baseRate: 50, disk: 8192, diskBase: 0.61, pc: '制御 PC（Windows 11 / UFOCapture HD2）',
     net: '観測所回線（VPN）', bw: 70, bwNote: '共用回線。上りが細い',
     since: '2021-08',
-    note: '中央の局。木曽を固定したうえで、2 局以上でカバーできる面積が最大になる向き（北東・仰角 46.6°）。'
+    note: '中央の局。木曽を固定したうえで、2 局以上でカバーできる面積が最大になる向き（北北東・仰角 46.6°）。'
   }
 };
 AL.STL = ['FNB', 'KSO', 'AKN'];                       /* 表示順（系列色の割り当て順でもある） */
@@ -92,7 +92,7 @@ AL.setAim = function (st, a) {
 };
 /* 既定の向き：木曽を 方位 50°・仰角 35° に固定し、残る 2 局を
    「2 局以上でカバーされる面積」が最大になるように探索した値（高度 100 km、有効範囲 天頂角 70°）。 */
-AL.aimDefaults = { FNB: { az: 20, el: 46.6, fl: 24 }, KSO: { az: 50, el: 35, fl: 24 }, AKN: { az: 35, el: 46.6, fl: 24 } };
+AL.aimDefaults = { FNB: { az: 22, el: 48.6, fl: 24 }, KSO: { az: 50, el: 40, fl: 24 }, AKN: { az: 32, el: 46.6, fl: 24 } };
 AL.resetAim = function () { AL.STL.forEach(function (id) { AL.setAim(AL.ST[id], AL.aimDefaults[id]); }); };
 /* ---------- 観測局とのデータのやり取り（設計値） ---------- */
 AL.LINK = {

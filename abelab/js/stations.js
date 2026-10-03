@@ -42,7 +42,8 @@ AL.ST = {
     cam: 'Canon ME20F-SHN（カラー・フルサイズ）', lensNote: '24 mm F1.4',
     az: 337.5, el: 45, fl: 24,      /* 北北西・仰角 45° */
     sqm: 18.6, baseRate: 22, disk: 4096, diskBase: 0.84, pc: '制御 PC（Windows 11 / UFOCapture HD2）',
-    net: '学内 LAN（1 Gbps）', since: '2026-04',
+    net: '学内 LAN 1 Gbps', bw: 700, bwNote: '学内幹線。昼夜とも空いている',
+    since: '2026-04',
     note: '開発・試験と火球監視を兼ねる都市部の局。北北西を向き、関東上空から山岳 2 局の方向までを覆う。' +
           '光害が大きく限界等級は浅いが、機材更新とトリガー調整をここで詰めてから山岳の 2 局へ展開する。'
   },
@@ -54,7 +55,8 @@ AL.ST = {
     cam: 'Canon ME20F-SH（モノクロ・フルサイズ）', lensNote: '24 mm F1.4',
     az: 45, el: 45, fl: 24,         /* 北東・仰角 45° */
     sqm: 21.3, baseRate: 55, disk: 8192, diskBase: 0.38, pc: '制御 PC（Windows 11 / UFOCapture HD2）',
-    net: '観測所回線（VPN 経由で遠隔操作）', since: '2021-10',
+    net: '観測所回線（VPN）', bw: 100, bwNote: '他の観測装置と共用。夜間は譲る前提',
+    since: '2021-10',
     note: '西側の局。北東を向き、北西を向く明野局と高度 80–120 km の層で視野が重なるようにする。'
   },
   AKN: {
@@ -65,7 +67,8 @@ AL.ST = {
     cam: 'Canon ME20F-SH（モノクロ・フルサイズ）', lensNote: '24 mm F1.4',
     az: 315, el: 45, fl: 24,        /* 北西・仰角 45° */
     sqm: 21.0, baseRate: 50, disk: 8192, diskBase: 0.61, pc: '制御 PC（Windows 11 / UFOCapture HD2）',
-    net: '観測所回線（VPN 経由で遠隔操作）', since: '2021-08',
+    net: '観測所回線（VPN）', bw: 70, bwNote: '共用回線。上りが細い',
+    since: '2021-08',
     note: '東側の局。北西を向き、北東を向く木曽局と対にして同時流星を取り、速度と軌道を出す。'
   }
 };
@@ -84,6 +87,19 @@ AL.setAim = function (st, a) {
 };
 AL.aimDefaults = { FNB: { az: 337.5, el: 45, fl: 24 }, KSO: { az: 45, el: 45, fl: 24 }, AKN: { az: 315, el: 45, fl: 24 } };
 AL.resetAim = function () { AL.STL.forEach(function (id) { AL.setAim(AL.ST[id], AL.aimDefaults[id]); }); };
+/* ---------- 観測局とのデータのやり取り（設計値） ---------- */
+AL.LINK = {
+  prefix: 'nuabe',
+  mqtt: { port: 8883, wsPort: 443, keepAlive: 30, qosTlm: 0, qosEvt: 1 },
+  tlmSec: 30,                       /* 死活・気象の送出間隔 */
+  evtBytes: 2048,                   /* 1 イベントのメタデータ */
+  tlmBytes: 1024,
+  codec: [
+    { key: 'raw',  name: '無圧縮 YUYV422', ratio: 1,    note: 'UFOCapture が書くそのまま。測光の基準' },
+    { key: 'ffv1', name: 'FFV1（可逆）',   ratio: 2.2,  note: '画素値は変わらない。圧縮率は実測で確かめる' },
+    { key: 'h264', name: 'H.264（閲覧用）', ratio: 40,  note: '目視確認と共有用。測光には使わない' }
+  ]
+};
 AL.compass16 = function (deg) {
   var N = ['北', '北北東', '北東', '東北東', '東', '東南東', '南東', '南南東',
            '南', '南南西', '南西', '西南西', '西', '西北西', '北西', '北北西'];

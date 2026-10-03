@@ -10,7 +10,8 @@ var VIEWS = [
   { id: 'station',  label: '局別監視', hint: '局ごとの DAQ 監視' },
   { id: 'events',   label: '検出結果', hint: 'イベントの分布と一覧' },
   { id: 'pairs',    label: '同時観測', hint: '木曽 × 明野の視野と時刻合わせ' },
-  { id: 'plan',     label: '観測条件', hint: '月・薄明・流星群・天候' }
+  { id: 'plan',     label: '観測条件', hint: '月・薄明・流星群・天候' },
+  { id: 'link',     label: 'データ連携', hint: '観測局とのデータのやり取り' }
 ];
 var RANGES = [
   { id: '6h',  label: '直近 6 時間',  ms: 6 * 3600e3 },

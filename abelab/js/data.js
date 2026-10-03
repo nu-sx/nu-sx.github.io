@@ -284,6 +284,116 @@ AL.data.pairs = function (t0, t1) {
   });
 };
 
+/* ================= インフラサウンド =================
+   ・背景雑音は風で決まる。風が強いほど小さな衝撃波が埋もれる。
+   ・火球の衝撃波は、光ってから音速ぶん遅れて届く（高度 100 km なら 6〜12 分）。
+   ・雷や人工音のほうが数は多い。火球起源かどうかは、光学との時刻・方位の一致で見分ける。 */
+AL.data.infraNoise = function (st, t) {
+  var c = AL.data.cond(st, t);
+  var wind = 1.2 + 3.6 * noise(st.id + 'w', t / HOUR / 5);     /* 代表風速 [m/s] */
+  var rain = c.cloud > 0.9 ? 1 : 0;
+  return { pa: st.infraNoise * (0.6 + 0.9 * wind / 4) * (1 + rain * 0.8), wind: wind, cloud: c.cloud };
+};
+/* 火球の候補（明るい光学イベント）に対して、3 局への音の到達を計算する */
+AL.data.infraFromMeteor = function (e) {
+  var st0 = AL.st(e.st);
+  var src = AL.eventPos(st0, e.fx == null ? 0.5 : e.fx, e.fy == null ? 0.5 : e.fy, e.h0 || 90);
+  var b = AL.bolide(e.mag, e.dur);
+  var arr = AL.STL.map(function (id) {
+    var st = AL.st(id);
+    var gnd = AL.dist(st.lat, st.lon, src.lat, src.lon);
+    var R = Math.hypot(gnd, e.h0 || 90);                        /* 斜距離 [km] */
+    var dt = R / AL.INFRA.c;                                    /* 伝播時間 [s] */
+    var amp = AL.infraAmp(b.kt, R);
+    var n = AL.data.infraNoise(st, e.t + dt * 1000).pa;
+    var r = AL.rng('ib' + e.id + id);
+    /* 風で到来方位は数度ずれる */
+    var baz = (AL.bearing ? 0 : 0) + (Math.atan2(
+      (src.lon - st.lon) * Math.cos(st.lat * AL.d2r), src.lat - st.lat) * AL.r2d + 360) % 360;
+    return { st: id, t: e.t + dt * 1000, dt: dt, R: R, gnd: gnd, amp: amp, noise: n,
+             snr: amp / n, baz: (baz + (r() - 0.5) * 8 + 360) % 360, det: amp > n * 2 };
+  });
+  return { id: 'B' + e.id, type: 'bolide', t: e.t, src: src, ev: e, mag: e.mag,
+           kt: b.kt, E: b.E, P: b.P, arr: arr, nDet: arr.filter(function (a) { return a.det; }).length };
+};
+/* 期間内の火球候補（等級 −4 以下）。音が届くのは遅れるので、前後に余裕をとって探す */
+AL.data.bolides = function (t0, t1, magLim) {
+  var lim = magLim == null ? -4 : magLim;
+  var ev = AL.data.events(AL.STL, t0 - 15 * 60e3, t1, 20000);
+  var out = [];
+  ev.forEach(function (e) { if (e.mag <= lim) out.push(AL.data.infraFromMeteor(e)); });
+  /* 同じ流星を複数局が光学で捉えている場合はいちばん明るいものを代表にする */
+  var byShared = {};
+  return out.filter(function (b) {
+    var k = b.ev.shared;
+    if (!k) return true;
+    if (byShared[k]) return false;
+    byShared[k] = 1; return true;
+  }).sort(function (a, b2) { return b2.t - a.t; });
+};
+/* 火球以外の検出（雷・人工音）。数のうえではこちらが大半を占める */
+AL.data.infraOther = function (stId, t0, t1) {
+  var st = AL.st(stId), out = [];
+  for (var h = Math.floor(t0 / HOUR) * HOUR; h < t1; h += HOUR) {
+    var key = 'io' + stId + h;
+    var list = CACHE[key];
+    if (!list) {
+      var r = AL.rng(key), c = AL.data.cond(st, h + HOUR / 2);
+      /* 雷は雲が厚いときだけ。人工音（発破・航空機）は昼に多い */
+      var pThunder = c.cloud > 0.85 ? 6 * (c.cloud - 0.85) / 0.15 : 0;
+      var hh = AL.parts(h).h;
+      var pMan = (stId === 'FNB' ? 2.2 : 0.5) * (hh >= 7 && hh < 19 ? 1 : 0.25);
+      list = [];
+      [['雷', pThunder, 0.25, 'HF'], ['人工音', pMan, 0.12, 'HF']].forEach(function (k) {
+        var n = Math.max(0, Math.round(k[1] + Math.sqrt(k[1] + 0.01) * AL.gauss(r)));
+        for (var i = 0; i < n; i++) {
+          list.push({ id: 'O' + stId + h.toString(36) + k[0] + i, type: k[0], st: stId,
+                      t: h + r() * HOUR, amp: k[2] * (0.3 + 2.4 * Math.pow(r(), 2)),
+                      P: 0.05 + 0.25 * r(), baz: r() * 360, band: k[3] });
+        }
+      });
+      list.sort(function (a, b) { return a.t - b.t; });
+      CACHE[key] = list;
+    }
+    list.forEach(function (x) { if (x.t >= t0 && x.t < t1) out.push(x); });
+  }
+  return out;
+};
+/* 地球に落ちてくる火球の頻度（Brown et al. 2002）。
+   N(>E) = 3.7 · E^-0.9 ［個/年・全地球］、E は kt。これを微分して、
+   その局が検出できる半径の面積で重みをつけ、年あたりの期待個数を出す。
+   伝播が当てにならなくなる 400 km より遠くは数えない。 */
+AL.data.infraRate = function (stId, t, maxR) {
+  var st = AL.st(stId), n = AL.data.infraNoise(st, t == null ? AL.now() : t).pa;
+  var Rmax = maxR || 400, need = n * 2, total = 0, rows = [];
+  /* 等級 −8 から −20 まで 0.5 等刻みで積む（継続時間は等級から大まかに与える） */
+  for (var m = -8; m >= -20; m -= 0.5) {
+    var dur = AL.clamp(1.2 + Math.max(0, -m - 6) * 0.35, 0.8, 8);
+    var b1 = AL.bolide(m, dur), b2 = AL.bolide(m - 0.5, AL.clamp(1.2 + Math.max(0, -(m - 0.5) - 6) * 0.35, 0.8, 8));
+    /* この等級で検出できる距離：12√kt·(100/R) = need */
+    var R = AL.clamp(1200 * Math.sqrt(b1.kt) / need, 0, Rmax);
+    if (R <= 0) continue;
+    var area = Math.PI * R * R;
+    /* この 0.5 等ビンの発生頻度（全地球・年） */
+    var dN = 3.7 * (Math.pow(b1.kt, -0.9) - Math.pow(b2.kt, -0.9));
+    if (!isFinite(dN) || dN <= 0) continue;
+    var rate = dN * area / 5.1e8;
+    total += rate;
+    rows.push({ mag: m, kt: b1.kt, R: R, rate: rate });
+  }
+  return { perYear: total, noise: n, rows: rows };
+};
+/* その局で、距離 R km の火球を捉えるのに必要な最小の等級（継続 2 秒と仮定） */
+AL.data.infraMagLimit = function (stId, Rkm, t) {
+  var st = AL.st(stId), n = AL.data.infraNoise(st, t == null ? AL.now() : t).pa;
+  var need = n * 2;                                   /* 雑音の 2 倍を検出のしきい値とする */
+  for (var m = 0; m >= -22; m -= 0.1) {
+    var b = AL.bolide(m, 2);
+    if (AL.infraAmp(b.kt, Rkm) >= need) return m;
+  }
+  return -22;
+};
+
 /* ================= 局の現在値 ================= */
 AL.data.status = function (stId, t) {
   if (AL.data.source === 'real' && REAL.status[stId]) return REAL.status[stId];

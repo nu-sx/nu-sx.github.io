@@ -203,7 +203,8 @@ AL.V.station = function (root, ui) {
       note: (function () {
         var v = AL.fov(st);
         return st.cam + '／' + AL.f(v.fl, 0) + ' mm／視野 ' + AL.f(v.w, 1) + '° × ' + AL.f(v.h, 1) + '°／' +
-               AL.compass16(st.az) + '（方位 ' + AL.f(st.az, 0) + '°）・仰角 ' + AL.f(st.el, 0) + '°';
+               AL.compass16(st.az) + '（方位 ' + AL.f(st.az, 0) + '°）・仰角 ' + AL.f(st.el, 0) + '°' +
+               '／インフラサウンド ' + AL.INFRA.model.split('（')[0];
       })(),
       right: [AL.stateBadge(s.state), el('span', { class: 'note', text: AL.latlon ? '' : '' })]
     });

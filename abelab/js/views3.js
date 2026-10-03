@@ -95,7 +95,7 @@ AL.V.link = function (root, ui) {
       '時刻・等級・継続・角速度・群・保存先',
       '事象ごと／' + AL.f(AL.LINK.evtBytes / 1024, 1) + ' kB　MQTT QoS 1',
       '1 夜 ' + AL.f(tot.n * AL.LINK.evtBytes / 1048576, 1) + ' MB（3 局合計）'], '#fab219');
-    box(255, 182, 250, 86, '③ 映像の本体', [
+    box(255, 182, 250, 86, '③ 映像の本体 ＋ ③′ 音の波形', [
       'AVI（可逆圧縮）＋ 閲覧用 H.264',
       '夜明け後にまとめて／帯域制限つき',
       '1 夜 ' + AL.f(tot.gb, 0) + ' GB（無圧縮）',
@@ -130,11 +130,13 @@ AL.V.link = function (root, ui) {
       AL.f(tot.n * AL.LINK.evtBytes / 1048576, 1) + ' MB', 'MQTT / TLS 8883', '10 秒'],
      ['③', '映像・マスク・ピークホールド', '夜明け後', AL.f(tot.gb * 1024 / Math.max(1, tot.n), 0) + ' MB',
       AL.f(tot.gb, 0) + ' GB', 'rsync over SSH / S3', '翌日の日没まで'],
+     ['③′', 'インフラサウンドの連続波形', AL.INFRA.fs + ' Hz 連続', AL.f(AL.INFRA.rateKBs, 2) + ' kB/s',
+      AL.f(AL.INFRA.rateKBs * 86400 * 3 / 1024, 0) + ' MB', '常時ストリーム（MQTT or TCP）', '1 分'],
      ['④', '指令と ack', '操作ごと', '0.5 kB', '— ', 'MQTT / TLS 8883', '1 秒'],
      ['⑤', '夜ごとのマニフェスト', '1 夜 1 回', '50 kB', '0.15 MB', 'MQTT ＋ 保管先に同送', '翌日']
     ], { scroll: false }));
   AL.add(p3.querySelector('.body'), el('div', { class: 'note', style: { marginTop: '6px' },
-    text: '①②④は合わせて 1 日 10 MB 程度で、観測所の回線を圧迫しない。' +
+    text: '①②③′④は合わせて 1 日 230 MB 程度で、観測所の回線を圧迫しない。' +
           '帯域を食うのは③だけなので、③は観測が終わってから、帯域に上限をつけて流す。' }));
   g.appendChild(p3);
 

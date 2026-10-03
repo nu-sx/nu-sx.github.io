@@ -37,6 +37,39 @@ AL.FOV_REF = 54 * 33;              /* DIMS（35 mm レンズ）の視野。ト�
 AL.USABLE = { maxZa: 70 };
 AL.airmass = function (za) { return 1 / Math.cos(Math.min(85, za) * AL.d2r); };
 
+/* ---------- インフラサウンド（火球の衝撃波を音で捉える） ----------
+   光学は雲があると何も写らないが、音は雲を通る。昼間でも鳴る。
+   3 局の到達時刻の差から音源の位置が出せるので、光学の軌跡と突き合わせて
+   発光点・爆発点の高度を押さえる。 */
+AL.INFRA = {
+  model: '株式会社サヤ INF03（0.1–1000 Hz, 130/110 dB SPL 切替）',
+  fs: 100, bits: 24, ch: 3,            /* 100 Hz・24 bit・3 ch（気圧 ＋ 加速度 2 成分） */
+  bands: [
+    { key: 'HF', name: 'HF', band: '1–20 Hz',      what: '近傍の爆発音・雷・人工雑音' },
+    { key: 'MF', name: 'MF', band: '0.1–1 Hz',     what: '火球の衝撃波・マイクロバロム' },
+    { key: 'LF', name: 'LF', band: '0.005–0.1 Hz', what: '大気重力波・気圧変動' }
+  ],
+  c: 0.30,                             /* 実効音速 [km/s]（成層圏反射を含めた水平伝播の目安） */
+  lumEff: 0.07,                        /* 発光効率。全エネルギーのうち光になる割合 */
+  /* 1 秒・100 Hz・24 bit・3 ch の記録量 */
+  rateKBs: 100 * 3 * 3 / 1024
+};
+/* 等級と継続時間から、火球のエネルギーと衝撃波の卓越周期を見積もる。
+   光度は I = 1500 · 10^(-0.4 M) [W]（絶対等級、高度 100 km 基準）。
+   周期は AFTAC の周期–収量関係 log10(E/2) = 3.34 log10(P) − 2.58（E は kt）を逆に解く。 */
+AL.bolide = function (mag, dur) {
+  var I = 1500 * Math.pow(10, -0.4 * mag);
+  var Er = I * Math.max(0.05, dur) * 0.5;            /* 光度曲線を三角形で近似 [J] */
+  var E = Er / AL.INFRA.lumEff;                      /* 全エネルギー [J] */
+  var kt = E / 4.184e12;
+  var P = Math.pow(10, (Math.log10(Math.max(1e-12, kt / 2)) + 2.58) / 3.34);
+  return { I: I, Er: Er, E: E, kt: kt, P: P };
+};
+/* 距離 R [km] での圧力振幅 [Pa]。Δp ∝ √E / R の簡便式 */
+AL.infraAmp = function (kt, Rkm) {
+  return 12 * Math.sqrt(Math.max(1e-12, kt)) * (100 / Math.max(10, Rkm));
+};
+
 /* 系列色は data-viz の検証済みスロット 1–3（暗面で全ペア CVD ΔE 9.4）を固定順に割り当てる */
 AL.ST = {
   FNB: {
@@ -47,7 +80,7 @@ AL.ST = {
     cam: 'Canon ME20F-SHN（カラー・フルサイズ）', lensNote: '24 mm F1.4',
     az: 0, el: 47, fl: 24,          /* 北・仰角 47°（固定の基準） */
     sqm: 18.6, baseRate: 22, disk: 4096, diskBase: 0.84, pc: '制御 PC（Windows 11 / UFOCapture HD2）',
-    net: '学内 LAN 1 Gbps', bw: 700, bwNote: '学内幹線。昼夜とも空いている',
+    infraNoise: 0.055, net: '学内 LAN 1 Gbps', bw: 700, bwNote: '学内幹線。昼夜とも空いている',
     since: '2026-04',
     note: '開発・試験と火球監視を兼ねる都市部の局。真北・仰角 47° に固定し、山岳 2 局と同じ空を見込む。' +
           '光害が大きく限界等級は浅いが、機材更新とトリガー調整をここで詰めてから山岳の 2 局へ展開する。'
@@ -60,7 +93,7 @@ AL.ST = {
     cam: 'Canon ME20F-SH（モノクロ・フルサイズ）', lensNote: '24 mm F1.4',
     az: 50, el: 38, fl: 24,         /* 北東・仰角 38°（固定の基準） */
     sqm: 21.3, baseRate: 55, disk: 8192, diskBase: 0.38, pc: '制御 PC（Windows 11 / UFOCapture HD2）',
-    net: '観測所回線（VPN）', bw: 100, bwNote: '他の観測装置と共用。夜間は譲る前提',
+    infraNoise: 0.020, net: '観測所回線（VPN）', bw: 100, bwNote: '他の観測装置と共用。夜間は譲る前提',
     since: '2021-10',
     note: '西側の局。方位 50°・仰角 38° に固定して運用する。この向きと船橋を基準に、明野の向きを決めた。'
   },
@@ -72,7 +105,7 @@ AL.ST = {
     cam: 'Canon ME20F-SH（モノクロ・フルサイズ）', lensNote: '24 mm F1.4',
     az: 25, el: 46.5, fl: 24,       /* 北北東。木曽と船橋を固定してカバー面積を最大にした値 */
     sqm: 21.0, baseRate: 50, disk: 8192, diskBase: 0.61, pc: '制御 PC（Windows 11 / UFOCapture HD2）',
-    net: '観測所回線（VPN）', bw: 70, bwNote: '共用回線。上りが細い',
+    infraNoise: 0.026, net: '観測所回線（VPN）', bw: 70, bwNote: '共用回線。上りが細い',
     since: '2021-08',
     note: '中央の局。木曽と船橋を固定したうえで、2 局以上でカバーできる面積が最大になる向き（北北東・仰角 46.5°）。'
   }
@@ -323,6 +356,15 @@ AL.optimizeAim = function (o) {
   free.forEach(function (id) { out.aims[id] = { az: bestRun.work[id].az, el: bestRun.work[id].el }; });
   out.coverage = AL.coverage(AL.STL.map(function (id) { return bestRun.work[id]; }), h);
   return out;
+};
+/* 視野内の位置（fx, fy = 0–1）から、高度 h km の層での緯度経度を出す。
+   footprint は台形なので、奥行き方向に線形、左右は奥行きに応じた幅で内挿する。 */
+AL.eventPos = function (st, fx, fy, h) {
+  var p = AL.footprintPoly(st, h);           /* [近左, 遠左, 遠右, 近右] */
+  var near = [AL.lerp(p[0][0], p[3][0], fx), AL.lerp(p[0][1], p[3][1], fx)];
+  var far  = [AL.lerp(p[1][0], p[2][0], fx), AL.lerp(p[1][1], p[2][1], fx)];
+  var ne = [AL.lerp(near[0], far[0], fy), AL.lerp(near[1], far[1], fy)];
+  return AL.neToLatLon(ne, st);
 };
 /* [北, 東] km → 緯度経度 */
 AL.neToLatLon = function (ne, ref) {

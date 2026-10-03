@@ -11,6 +11,7 @@ var VIEWS = [
   { id: 'events',   label: '検出結果', hint: 'イベントの分布と一覧' },
   { id: 'pairs',    label: '同時観測', hint: '木曽 × 明野の視野と時刻合わせ' },
   { id: 'plan',     label: '観測条件', hint: '月・薄明・流星群・天候' },
+  { id: 'infra',    label: 'インフラサウンド', hint: '火球の衝撃波を音で捉える' },
   { id: 'link',     label: 'データ連携', hint: '観測局とのデータのやり取り' }
 ];
 var RANGES = [
@@ -148,6 +149,7 @@ function boot() {
     '機材・運用の諸元は DIMS（Dark matter and Interstellar Meteoroid Study）に準拠：' +
     'Canon ME20F-SH 系（35 mm フルサイズ CMOS）＋24 mm レンズ、視野 73.7° × 53.1°、1920 × 1080・30 fps、' +
     'トリガーは UFOCapture、日没 30 分後から日の出 30 分前まで自動運用。' +
+    '3 局ともインフラサウンドセンサー（株式会社サヤ INF03）を併設し、火球の衝撃波を音でも捉える。' +
     '木曽（方位 50°・仰角 38°）と船橋（方位 0°・仰角 47°）を固定し、明野は 2 局以上でカバーできる' +
     '面積が最大になる向き（方位 25°・仰角 46.5°）を既定とした（「同時観測」の地図から変えられる）。', el('br'),
     '参考：S. Abe et al., “DIMS (Dark matter and Interstellar Meteoroid Study) Experiment”, PoS(ICRC2025)529。', el('br'),

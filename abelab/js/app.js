@@ -148,7 +148,7 @@ function boot() {
     '機材・運用の諸元は DIMS（Dark matter and Interstellar Meteoroid Study）に準拠：' +
     'Canon ME20F-SH 系（35 mm フルサイズ CMOS）＋24 mm レンズ、視野 73.7° × 53.1°、1920 × 1080・30 fps、' +
     'トリガーは UFOCapture、日没 30 分後から日の出 30 分前まで自動運用。' +
-    '木曽は 方位 50°・仰角 40° に固定し、明野（方位 32°・仰角 46.6°）と船橋（方位 22°・仰角 48.6°）は' +
+    '木曽は 方位 50°・仰角 45° に固定し、明野（方位 32°・仰角 46.6°）と船橋（方位 22°・仰角 48.6°）は' +
     '2 局以上でカバーできる面積が最大になる向きを探索して既定とした（「同時観測」の地図から変えられる）。', el('br'),
     '参考：S. Abe et al., “DIMS (Dark matter and Interstellar Meteoroid Study) Experiment”, PoS(ICRC2025)529。', el('br'),
     '地図：都道府県境界は国土数値情報を簡略化したもの。気象衛星ひまわりの画像は気象庁（https://www.jma.go.jp/）から取得している。', el('br'),

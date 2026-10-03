@@ -219,3 +219,28 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 .demo-bar b { color: var(--warning); }
 footer { padding: 18px 16px 40px; color: var(--text-3); font-size: 11.5px; line-height: 1.8; border-top: 1px solid var(--border); margin-top: 24px; }
 footer b { color: var(--text-2); }
+
+/* ================= 地図 ================= */
+.mapwrap { position: relative; width: 100%; height: 430px; border-radius: 3px; overflow: hidden; }
+svg.jmap { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; background: #0b0e12; }
+svg.jmap.grabbing { cursor: grabbing; }
+.m-sea { fill: #0c1118; }
+.m-pref { fill: #171c22; stroke: #39424d; stroke-width: 0.9; }
+.m-grid .gl { stroke: rgba(255,255,255,.055); stroke-width: 0.6; vector-effect: non-scaling-stroke; }
+.m-grid .gt { fill: #5e656e; font-family: var(--mono); }
+.m-fov polygon { fill-opacity: .14; stroke-width: 1.4; vector-effect: non-scaling-stroke; }
+.m-ov polygon { fill: rgba(255,255,255,.2); stroke: rgba(255,255,255,.55); stroke-dasharray: 4 3;
+  stroke-width: 1.2; vector-effect: non-scaling-stroke; }
+.m-ov line { stroke: rgba(255,255,255,.45); stroke-width: 1.2; stroke-dasharray: 2 3; vector-effect: non-scaling-stroke; }
+.m-st circle { stroke: #0b0e12; stroke-width: 1.6; vector-effect: non-scaling-stroke; }
+.m-st text { fill: #e6e7ea; font-weight: 700; paint-order: stroke; stroke: #0b0e12; stroke-width: 2.4px;
+  stroke-linejoin: round; text-anchor: middle; }
+.m-ov text { fill: #e6e7ea; paint-order: stroke; stroke: rgba(11,14,18,.8); stroke-width: 2.4px;
+  stroke-linejoin: round; text-anchor: middle; }
+.maphint { position: absolute; right: 8px; bottom: 7px; font-size: 10.5px; color: var(--text-3);
+  background: rgba(11,14,18,.72); border: 1px solid var(--border); border-radius: 3px; padding: 2px 7px; pointer-events: none; }
+.ctl { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--text-2); }
+.ctl select, .ctl input[type=range] { font: inherit; }
+.ctl select { background: var(--bg); color: var(--text-1); border: 1px solid var(--border-2);
+  border-radius: 3px; padding: 2px 5px; }
+.ctl input[type=range] { width: 92px; accent-color: #5598e7; }

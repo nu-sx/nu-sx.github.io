@@ -134,7 +134,7 @@ function boot() {
   document.body.appendChild(el('a', { class: 'skiplink', href: '#main', text: '本文へ' }));
   document.body.appendChild(el('div', { class: 'demo-bar' }, [
     el('b', { text: 'デモ版' }),
-    '　表示している観測値・イベントは模擬データです。局の配置と機材構成、運用の考え方は DIMS（Dark matter and Interstellar Meteoroid Study）の日本側観測に基づきます。',
+    '　表示している観測値・イベントは模擬データです（「同時観測」の気象衛星ひまわりは気象庁の実データ）。局の配置と機材構成、運用の考え方は DIMS（Dark matter and Interstellar Meteoroid Study）の日本側観測に基づきます。',
     el('span', { style: { opacity: .8 } }, ['　実データは ', el('code', { text: 'AL.ingest.ufo() / .csv() / .status()' }), ' から差し込めます。'])
   ]));
   head = el('header', { class: 'topbar' });
@@ -148,7 +148,8 @@ function boot() {
     'Canon ME20F-SH 系＋35 mm F1.4、視野 54° × 33°、1920 × 1080・30 fps、' +
     'トリガーは UFOCapture、日没 30 分後から日の出 30 分前まで自動運用。', el('br'),
     '参考：S. Abe et al., “DIMS (Dark matter and Interstellar Meteoroid Study) Experiment”, PoS(ICRC2025)529。', el('br'),
-    el('span', { style: { opacity: .75 }, text: '本ページは外部へ通信しない静的なデモである。' })
+    '地図：都道府県境界は国土数値情報を簡略化したもの。気象衛星ひまわりの画像は気象庁（https://www.jma.go.jp/）から取得している。', el('br'),
+    el('span', { style: { opacity: .75 }, text: '本ページは静的なデモで、外部への通信は気象衛星を選んだときの気象庁サーバーへの取得だけである。' })
   ]));
 
   var h = (location.hash || '').replace('#', '');

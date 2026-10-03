@@ -78,34 +78,77 @@ AL.footprint = function (st, h) {
            north: [near * c, far * c], east: [-half * c, half * c],
            azRad: br, sinAz: sn, cosAz: c };
 };
-/* 二局の視野が高度 h km で重なるか。方位が同じ（どちらも北向き）前提で、
-   北方向の区間と東西方向の区間の積として重なりを見る。 */
+/* 高度 h km の層での視野の footprint を多角形で返す（局を原点とする [北, 東] km）。
+   天頂角 za±16.5° で近端と遠端の距離が変わり、その距離に比例して左右の幅も変わるので、
+   地上に落とした形は矩形ではなく「奥ほど広がる台形」になる。
+   ref を渡すと、その地点を原点とする座標系で返す。 */
+AL.footprintPoly = function (st, h, ref) {
+  var za = st.za * AL.d2r, hh = AL.RIG.fovH / 2 * AL.d2r, hw = AL.RIG.fovW / 2 * AL.d2r;
+  var zN = Math.max(0.004, za - hh), zF = Math.min(1.48, za + hh);   /* 天頂角 85° で頭打ち */
+  var dN = h * Math.tan(zN), dF = h * Math.tan(zF);
+  var wN = (h / Math.cos(zN)) * Math.tan(hw), wF = (h / Math.cos(zF)) * Math.tan(hw);
+  var c = Math.cos(st.az * AL.d2r), sn = Math.sin(st.az * AL.d2r);
+  var o = ref ? [(st.lat - ref.lat) * 111.32, (st.lon - ref.lon) * 111.32 * Math.cos(ref.lat * AL.d2r)] : [0, 0];
+  /* [前方, 横] → [北, 東] */
+  return [[dN, -wN], [dF, -wF], [dF, wF], [dN, wN]].map(function (q) {
+    return [o[0] + q[0] * c - q[1] * sn, o[1] + q[0] * sn + q[1] * c];
+  });
+};
+/* 多角形の面積（靴ひも公式）と凸多角形どうしの交差（Sutherland–Hodgman） */
+function polyArea(p) {
+  var a = 0;
+  for (var i = 0, n = p.length; i < n; i++) {
+    var q = p[(i + 1) % n];
+    a += p[i][0] * q[1] - q[0] * p[i][1];
+  }
+  return Math.abs(a) / 2;
+}
+function clipPoly(subject, clip) {
+  var out = subject.slice();
+  for (var i = 0, n = clip.length; i < n && out.length; i++) {
+    var A = clip[i], B = clip[(i + 1) % n], inp = out;
+    out = [];
+    var side = function (p) { return (B[0] - A[0]) * (p[1] - A[1]) - (B[1] - A[1]) * (p[0] - A[0]); };
+    var sgn = polyArea(clip) > 0 ? 1 : 1;
+    for (var j = 0; j < inp.length; j++) {
+      var P = inp[j], Q = inp[(j + 1) % inp.length];
+      var sp = side(P), sq = side(Q);
+      /* 多角形は反時計回り・時計回りのどちらで来るか分からないので、内側の符号を面積から決める */
+      if (sp * sgn >= 0) out.push(P);
+      if ((sp > 0) !== (sq > 0)) {
+        var t = sp / (sp - sq);
+        out.push([P[0] + (Q[0] - P[0]) * t, P[1] + (Q[1] - P[1]) * t]);
+      }
+    }
+  }
+  return out;
+}
+function ccw(p) {                                   /* 反時計回りに揃える */
+  var a = 0;
+  for (var i = 0, n = p.length; i < n; i++) { var q = p[(i + 1) % n]; a += p[i][0] * q[1] - q[0] * p[i][1]; }
+  return a < 0 ? p.slice().reverse() : p;
+}
+/* 二局の視野が高度 h km でどれだけ重なるか。重なり領域の多角形も返す（地図に描く） */
 AL.overlapAt = function (a, b, h) {
   var A = AL.st(a), B = AL.st(b);
-  var fa = AL.footprint(A, h), fb = AL.footprint(B, h);
-  /* B を原点にした A の位置（北・東 [km]） */
-  var dN = (A.lat - B.lat) * 111.32;
-  var dE = (A.lon - B.lon) * 111.32 * Math.cos(B.lat * AL.d2r);
-  var aN = [dN + fa.near, dN + fa.far],  bN = [fb.near, fb.far];
-  var aE = [dE - fa.half, dE + fa.half], bE = [-fb.half, fb.half];
-  var oN = Math.min(aN[1], bN[1]) - Math.max(aN[0], bN[0]);
-  var oE = Math.min(aE[1], bE[1]) - Math.max(aE[0], bE[0]);
-  var areaA = (aN[1] - aN[0]) * (aE[1] - aE[0]);
-  var inter = Math.max(0, oN) * Math.max(0, oE);
-  return {
-    overlap: oN > 0 && oE > 0, northKm: oN, eastKm: oE,
-    areaKm2: inter, frac: areaA > 0 ? inter / areaA : 0,
-    sep: AL.dist(A.lat, A.lon, B.lat, B.lon),
-    box: { north: [Math.max(aN[0], bN[0]), Math.min(aN[1], bN[1])],
-           east: [Math.max(aE[0], bE[0]), Math.min(aE[1], bE[1])] }
-  };
+  var ref = { lat: (A.lat + B.lat) / 2, lon: (A.lon + B.lon) / 2 };
+  var pa = ccw(AL.footprintPoly(A, h, ref)), pb = ccw(AL.footprintPoly(B, h, ref));
+  var inter = clipPoly(pa, pb);
+  var areaA = polyArea(pa), areaI = inter.length > 2 ? polyArea(inter) : 0;
+  return { overlap: areaI > 1, areaKm2: areaI, frac: areaA > 0 ? areaI / areaA : 0,
+           poly: inter, a: pa, b: pb, ref: ref,
+           sep: AL.dist(A.lat, A.lon, B.lat, B.lon) };
+};
+/* [北, 東] km → 緯度経度 */
+AL.neToLatLon = function (ne, ref) {
+  var lat = ref.lat + ne[0] / 111.32;
+  return { lat: lat, lon: ref.lon + ne[1] / (111.32 * Math.cos(ref.lat * AL.d2r)) };
 };
 /* 二局の視野が重なる高度の範囲（流星の発光層 70–120 km に対して） */
 AL.overlapHeights = function (a, b) {
   var lo = null, hi = null;
-  for (var h = 40; h <= 140; h += 1) {
-    var o = AL.overlapAt(a, b, h);
-    if (o.overlap) { if (lo == null) lo = h; hi = h; }
+  for (var h = 10; h <= 150; h += 1) {
+    if (AL.overlapAt(a, b, h).overlap) { if (lo == null) lo = h; hi = h; }
   }
   return { lo: lo, hi: hi };
 };

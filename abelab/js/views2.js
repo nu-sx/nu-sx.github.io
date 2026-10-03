@@ -210,62 +210,114 @@ AL.V.pairs = function (root, ui) {
   })();
   g.appendChild(p2);
 
-  /* --- 平面図 --- */
-  var p3 = panel('視野の投影（高度 100 km の平面図）', { col: 'c6', note: '北が上。各局が高度 100 km の層で覆う範囲' });
+  /* --- 日本地図への投影（気象衛星を重ねられる）--- */
+  var ALT = [70, 80, 90, 100, 110, 120];
+  var curAlt = 100;
+  var p3 = panel('視野の投影（日本地図）', { col: 'c7', right: [],
+    note: '各局が高度の層で覆う範囲。ホイールで拡大、ドラッグで移動' });
   (function () {
-    var W = 560, Hh = 300, pad = { l: 40, r: 14, t: 12, b: 30 };
-    var xs = [-180, 240], ys = [-30, 235];
-    var X = function (v) { return pad.l + (v - xs[0]) / (xs[1] - xs[0]) * (W - pad.l - pad.r); };
-    var Y = function (v) { return Hh - pad.b - (v - ys[0]) / (ys[1] - ys[0]) * (Hh - pad.t - pad.b); };
-    var mid = (kso.lon + akn.lon) / 2, midLat = (kso.lat + akn.lat) / 2;
-    var svg = sv('svg', { viewBox: '0 0 ' + W + ' ' + Hh, width: '100%', style: 'display:block' });
-    [-100, 0, 100, 200].forEach(function (v) {
-      svg.appendChild(sv('line', { x1: X(xs[0]), y1: Y(v), x2: X(xs[1]), y2: Y(v), stroke: 'rgba(255,255,255,.06)' }));
-      svg.appendChild(sv('text', { x: pad.l - 6, y: Y(v) + 3, fill: '#777d86', 'font-size': 10, 'text-anchor': 'end',
-        'font-family': 'ui-monospace,monospace' }, String(v)));
-      svg.appendChild(sv('line', { x1: X(v), y1: Y(ys[0]), x2: X(v), y2: Y(ys[1]), stroke: 'rgba(255,255,255,.06)' }));
-      svg.appendChild(sv('text', { x: X(v), y: Hh - 8, fill: '#777d86', 'font-size': 10, 'text-anchor': 'middle',
-        'font-family': 'ui-monospace,monospace' }, String(v)));
-    });
-    svg.appendChild(sv('text', { x: pad.l - 6, y: Y(230) - 2, fill: '#777d86', 'font-size': 10, 'text-anchor': 'end' }, '北 km'));
-    svg.appendChild(sv('text', { x: X(240), y: Hh - 20, fill: '#777d86', 'font-size': 10, 'text-anchor': 'end' }, '東 km'));
-    var boxes = [];
-    [kso, akn, fnb].forEach(function (st) {
-      var e0 = (st.lon - mid) * 111.32 * Math.cos(st.lat * AL.d2r);
-      var n0 = (st.lat - midLat) * 111.32;
-      var f = AL.footprint(st, H);
-      var x0 = e0 - f.half, x1 = e0 + f.half, y0 = n0 + f.near, y1 = n0 + f.far;
-      boxes.push({ st: st, x0: x0, x1: x1, y0: y0, y1: y1 });
-      svg.appendChild(sv('rect', { x: X(x0), y: Y(y1), width: X(x1) - X(x0), height: Y(y0) - Y(y1),
-        fill: st.hex + '1f', stroke: st.hex, 'stroke-width': 1.5, rx: 2 }));
-      svg.appendChild(sv('circle', { cx: X(e0), cy: Y(n0), r: 4, fill: st.hex, stroke: '#181b1f', 'stroke-width': 1.5 }));
-      svg.appendChild(sv('text', { x: X(e0), y: Y(n0) + 15, fill: '#a3a8b0', 'font-size': 11, 'text-anchor': 'middle' }, st.name));
-    });
-    var a = boxes[0], b = boxes[1];
-    var ox0 = Math.max(a.x0, b.x0), ox1 = Math.min(a.x1, b.x1);
-    var oy0 = Math.max(a.y0, b.y0), oy1 = Math.min(a.y1, b.y1);
-    if (ox1 > ox0 && oy1 > oy0) {
-      svg.appendChild(sv('rect', { x: X(ox0), y: Y(oy1), width: X(ox1) - X(ox0), height: Y(oy0) - Y(oy1),
-        fill: 'rgba(255,255,255,.17)', stroke: 'rgba(255,255,255,.45)', 'stroke-dasharray': '3 3' }));
-      svg.appendChild(sv('text', { x: (X(ox0) + X(ox1)) / 2, y: (Y(oy0) + Y(oy1)) / 2, fill: '#e6e7ea',
-        'font-size': 11, 'text-anchor': 'middle' }, '同時観測の領域'));
+    var b = p3.querySelector('.body');
+    var status = el('span', { class: 'note' });
+    /* 操作：高度・衛星バンド・不透明度 */
+    var selAlt = el('select', { onchange: function () { curAlt = +selAlt.value; draw(true); } },
+      ALT.map(function (h) { return el('option', { value: h, text: h + ' km', selected: h === curAlt ? '' : null }); }));
+    var selBand = el('select', { onchange: function () {
+      sat.setBand(selBand.value || null, function (t) { status.textContent = t; });
+      opa.disabled = !selBand.value;
+    } }, [el('option', { value: '', text: 'なし' })].concat(AL.JMA_BANDS.map(function (bd) {
+      return el('option', { value: bd.key, text: bd.name, title: bd.desc });
+    })));
+    var opa = el('input', { type: 'range', min: 10, max: 100, value: 60, disabled: 'disabled',
+      oninput: function () { sat.setOpacity(opa.value / 100); } });
+    AL.add(p3.querySelector('header .right'), [
+      el('span', { class: 'ctl' }, ['高度', selAlt]),
+      el('span', { class: 'ctl' }, ['気象衛星', selBand, opa])
+    ]);
+
+    var M = AL.Map();
+    b.appendChild(M.node);
+    M.node.appendChild(el('div', { class: 'maphint', text: 'ひまわり：気象庁' }));
+    var sat = AL.satLayer(M);
+
+    function poly(g, pts, attrs) {
+      var d = pts.map(function (q) { var xy = AL.proj(q.lon, q.lat); return xy[0].toFixed(1) + ',' + xy[1].toFixed(1); }).join(' ');
+      var e = AL.s('polygon', Object.assign({ points: d }, attrs || {}));
+      g.appendChild(e);
+      return e;
     }
-    p3.querySelector('.body').appendChild(svg);
-    C.legend(p3.querySelector('.body'), [kso, akn, fnb].map(function (s) { return { name: s.name + '局の視野', color: s.hex }; }), { square: true });
+    function clearG(g) { while (g.firstChild) g.removeChild(g.firstChild); }
+
+    function draw(refit) {
+      clearG(M.layers.fov); clearG(M.layers.ov); clearG(M.layers.st);
+      var all = [];
+      /* 各局の視野（天頂角で奥ほど広がる台形） */
+      [kso, akn, fnb].forEach(function (st) {
+        var pts = AL.footprintPoly(st, curAlt).map(function (ne) { return AL.neToLatLon(ne, st); });
+        poly(M.layers.fov, pts, { fill: st.hex, stroke: st.hex });
+        all = all.concat(pts, [{ lat: st.lat, lon: st.lon }]);
+      });
+      /* 木曽 × 明野の重なりと基線 */
+      var ov = AL.overlapAt('KSO', 'AKN', curAlt);
+      if (ov.poly.length > 2) {
+        var pts2 = ov.poly.map(function (ne) { return AL.neToLatLon(ne, ov.ref); });
+        poly(M.layers.ov, pts2);
+        var cx = pts2.reduce(function (a, q) { return a + q.lon; }, 0) / pts2.length;
+        var cy = pts2.reduce(function (a, q) { return a + q.lat; }, 0) / pts2.length;
+        var c = AL.proj(cx, cy);
+        M.layers.ov.appendChild(AL.s('text', { x: c[0], y: c[1], class: 'ovlbl',
+          text: '同時観測の領域 ' + AL.int(ov.areaKm2) + ' km²' }));
+      }
+      var a1 = AL.proj(kso.lon, kso.lat), a2 = AL.proj(akn.lon, akn.lat);
+      M.layers.ov.appendChild(AL.s('line', { x1: a1[0], y1: a1[1], x2: a2[0], y2: a2[1] }));
+      /* 観測局 */
+      [kso, akn, fnb].forEach(function (st) {
+        var xy = AL.proj(st.lon, st.lat);
+        M.layers.st.appendChild(AL.s('circle', { cx: xy[0], cy: xy[1], r: 4, fill: st.hex },
+          [AL.s('title', { text: st.full })]));
+        M.layers.st.appendChild(AL.s('text', { x: xy[0], y: xy[1], 'data-y': xy[1], text: st.name }));
+      });
+      if (refit) M.fit(all, 0.1);
+      marks();
+      /* 注記を更新 */
+      hint.textContent = '高度 ' + curAlt + ' km：木曽 × 明野の視野は ' +
+        (ov.overlap ? AL.pct(ov.frac) + ' 重なり、' + AL.int(ov.areaKm2) + ' km² を共有する。' : '重ならない。') +
+        '船橋は現在の向きではこの層で両局と交わらない。';
+    }
+    /* 記号と文字は拡大率によらず同じ大きさに見えるようにする */
+    function marks() {
+      var k = 1 / Math.max(0.02, M.unit());        /* 画面 1 px ぶんの viewBox 単位 */
+      Array.prototype.forEach.call(M.layers.st.querySelectorAll('circle'), function (c) { c.setAttribute('r', (4.2 * k).toFixed(2)); });
+      Array.prototype.forEach.call(M.layers.st.querySelectorAll('text'), function (t) {
+        t.setAttribute('font-size', (11 * k).toFixed(2));
+        t.setAttribute('y', (+t.getAttribute('data-y') + 13 * k).toFixed(1));
+      });
+      Array.prototype.forEach.call(M.layers.ov.querySelectorAll('text'), function (t) { t.setAttribute('font-size', (10 * k).toFixed(2)); });
+      Array.prototype.forEach.call(M.svg.querySelectorAll('.m-grid .gt'), function (t) { t.setAttribute('font-size', (5.5 * k).toFixed(2)); });
+    }
+    M.onView = marks;
+    var hint = el('div', { class: 'note', style: { marginTop: '6px' } });
+    C.legend(b, [kso, akn, fnb].map(function (st) { return { name: st.name + '局の視野', color: st.hex }; })
+      .concat([{ name: '同時観測の領域', color: 'rgba(255,255,255,.45)' }]), { square: true });
+    b.appendChild(hint);
+    b.appendChild(el('div', { class: 'note', style: { marginTop: '2px' } }, [
+      '気象衛星はひまわりの実データ（気象庁）。選んだときだけ取得する。', status
+    ]));
+    draw(true);
+    setTimeout(function () { draw(true); }, 0);          /* パネルの幅が決まってから枠を合わせ直す */
   })();
   g.appendChild(p3);
 
   /* --- 船橋局の扱い --- */
-  var p4 = panel('船橋局を同時観測に加えるには', { col: 'c6', note: '現在の向きでは重ならない' });
+  var p4 = panel('船橋局を同時観測に加えるには', { col: 'c5', note: '現在の向きでは重ならない' });
   var b4 = p4.querySelector('.body');
   var rows = AL.PAIRS.map(function (pp) {
     var o = AL.overlapAt(pp[0], pp[1], H), hr = AL.overlapHeights(pp[0], pp[1]);
     return [AL.st(pp[0]).name + ' × ' + AL.st(pp[1]).name, AL.f(o.sep, 1) + ' km',
       o.overlap ? AL.state('good', '重なる', '●') : AL.state('idle', '重ならない', '○'),
       o.overlap ? AL.pct(o.frac) : '—',
-      hr.lo ? hr.lo + '–' + hr.hi + ' km' : '—'];
+      hr.lo ? hr.lo + ' km 以上' : '—'];
   });
-  AL.add(b4, AL.table(['組', ['基線長', 'num'], '高度 100 km', ['重なり', 'num'], ['成立する高度', 'num']], rows, { scroll: false }));
+  AL.add(b4, AL.table(['組', ['基線長', 'num'], '高度 100 km', ['重なり', 'num'], ['重なり始める高度', 'num']], rows, { scroll: false }));
   /* 船橋から明野の視野中心を見込む向きを出す */
   (function () {
     var fc = AL.footprint(akn, H);

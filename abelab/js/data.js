@@ -203,7 +203,8 @@ function hourEvents(stId, hourT) {
     var rr = AL.rng(sd.sid + stId);
     var c = AL.data.cond(st, sd.t);
     var m = AL.clamp(c.limMag + Math.log(Math.max(1e-6, sd.base)) / Math.log(2.5) + (rr() - 0.5) * 0.4, -8, c.limMag);
-    var vang = sd.v / (sd.h0 / Math.cos(st.za * AL.d2r)) * AL.r2d * Math.sin(sd.zang * AL.d2r);
+    /* 同じ流星でも局によって距離と見込む角度が違うので、見かけの角速度は数 % ずれる */
+    var vang = sd.v / (sd.h0 / Math.cos(st.za * AL.d2r)) * AL.r2d * Math.sin(sd.zang * AL.d2r) * (0.92 + 0.16 * rr());
     var durM = AL.clamp(0.12 + Math.pow(rr(), 2) * 1.5 + Math.max(0, -m) * 0.12, 0.08, 3.2);
     var t = sd.t + (stId === 'AKN' ? (rr() - 0.5) * 0.26 * 1000 : 0);   /* 時計のずれ ±0.13 秒 */
     out.push({

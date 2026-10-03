@@ -200,8 +200,11 @@ AL.V.station = function (root, ui) {
     /* 見出し */
     var head = panel(st.name + '局 — ' + st.full, {
       col: 'c12', flat: true,
-      note: st.cam + '／' + AL.RIG.lens + '／視野 ' + AL.RIG.fovW + '° × ' + AL.RIG.fovH + '°／' +
-            (st.mode === 'pole' ? '北天・天頂角 ' + st.za + '°' : '天頂付近'),
+      note: (function () {
+        var v = AL.fov(st);
+        return st.cam + '／' + AL.f(v.fl, 0) + ' mm／視野 ' + AL.f(v.w, 1) + '° × ' + AL.f(v.h, 1) + '°／' +
+               AL.compass16(st.az) + '（方位 ' + AL.f(st.az, 0) + '°）・仰角 ' + AL.f(st.el, 0) + '°';
+      })(),
       right: [AL.stateBadge(s.state), el('span', { class: 'note', text: AL.latlon ? '' : '' })]
     });
     head.style.borderLeft = '3px solid ' + st.hex;

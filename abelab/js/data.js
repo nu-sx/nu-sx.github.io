@@ -89,7 +89,9 @@ AL.data.rate = function (st, t) {
     var alt = AL.radiantAlt(x.sh, st, t);
     if (alt > 5) sh += x.zhr * Math.pow(Math.sin(alt * AL.d2r), 0.6) / 22;
   });
-  var rate = st.baseRate * (1 + sh) * moonF * cloudF * twiF;
+  /* 視野が広いほど多くの流星が入る。baseRate は DIMS（35 mm, 54°×33°）の視野での値 */
+  var fovF = AL.fovArea(st) / AL.FOV_REF;
+  var rate = st.baseRate * fovF * (1 + sh) * moonF * cloudF * twiF;
   return { rate: rate, cond: c, shower: sh, moonF: moonF, cloudF: cloudF,
            state: c.cloud > 0.93 ? 'clouded' : (f ? 'degraded' : 'observing'), fault: f };
 };
@@ -148,7 +150,7 @@ function makeEvent(st, t, r, shower, sharedId) {
   var fx = r(), fy = r();
   var ent = 90 + (r() - 0.5) * 30;                                      /* 発光高度 [km] */
   var zang = 20 + r() * 60;                                             /* 進行方向と視線のなす角 */
-  var vang = v / (ent / Math.cos(st.za * AL.d2r)) * AL.r2d * Math.sin(zang * AL.d2r);
+  var vang = v / (ent / Math.cos(AL.za(st) * AL.d2r)) * AL.r2d * Math.sin(zang * AL.d2r);
   var durM = AL.clamp(0.12 + Math.pow(r(), 2) * 1.5 + Math.max(0, -m) * 0.12, 0.08, 3.2);
   return {
     id: (sharedId || (st.id + t.toString(36) + Math.floor(r() * 1e6).toString(36))),
@@ -160,29 +162,40 @@ function makeEvent(st, t, r, shower, sharedId) {
     file: 'M' + AL.ymd(t).replace(/-/g, '') + '_' + AL.hms(t).replace(/:/g, '') + '_' + st.id + '.avi'
   };
 }
-/* その時間帯に木曽・明野の両方の視野へ入る流星の数。両局で同じ値になるように、
-   局によらない種から決める。視野の重なり割合に、重なり内で両方が検出できる割合を掛ける。 */
-function pairCount(hourT) {
-  var a = AL.data.hourly('KSO', hourT, hourT + HOUR)[0];
-  var b = AL.data.hourly('AKN', hourT, hourT + HOUR)[0];
-  if (!a.n || !b.n) return 0;
-  var ov = AL.overlapAt('KSO', 'AKN', 100).frac;
-  return Math.round(Math.min(a.n, b.n) * ov * 0.55);
-}
-/* 同時観測イベントの素（時刻・群・対地速度）。両局で共通 */
+/* 複数局の視野へ同時に入る流星の素を作る。局によらない種から決めるので、
+   どの局から呼んでも同じ時刻・同じ流星になる。
+   高度 100 km の層での視野の重なり割合から、3 局共通ぶんと 2 局ぶんの本数を決める。 */
 function pairSeeds(hourT) {
   var key = 'ps' + hourT;
   if (CACHE[key]) return CACHE[key];
-  var n = pairCount(hourT), r = AL.rng('pev' + hourT), out = [];
-  var act = AL.activeShowers(hourT + HOUR / 2);
-  var vis = act.filter(function (x) { return AL.radiantAlt(x.sh, AL.st('KSO'), hourT + HOUR / 2) > 5; });
-  var shTotal = AL.sum(vis.map(function (x) { return x.zhr; }));
-  for (var i = 0; i < n; i++) {
-    var sh = null, p = r() * (shTotal + 24);
-    for (var j = 0; j < vis.length; j++) { p -= vis[j].zhr; if (p <= 0) { sh = vis[j]; break; } }
-    out.push({ sid: 'P' + hourT.toString(36) + i.toString(36), t: hourT + r() * HOUR, sh: sh,
-               v: sh ? sh.v : AL.lerp(SPORADIC_V[0], SPORADIC_V[1], Math.pow(r(), 1.4)),
-               h0: 88 + (r() - 0.5) * 24, zang: 20 + r() * 60, base: r() });
+  var n = {}, ok = true;
+  AL.STL.forEach(function (id) { n[id] = AL.data.hourly(id, hourT, hourT + HOUR)[0].n; if (!n[id]) ok = false; });
+  var out = [], r = AL.rng('pev' + hourT);
+  if (ok) {
+    var tri = AL.commonVolume(AL.STL, 100);
+    var fovA = AL.footprintPoly(AL.st('KSO'), 100);
+    var areaOne = AL.polyArea(AL.ccwPoly(fovA));
+    var minAll = Math.min(n.FNB, n.KSO, n.AKN);
+    var nT = Math.round(minAll * (tri.area / areaOne) * 0.5);
+    var sets = [{ sts: AL.STL.slice(), n: nT }];
+    AL.PAIRS.forEach(function (pp) {
+      var o = AL.overlapAt(pp[0], pp[1], 100);
+      var m = Math.round(Math.min(n[pp[0]], n[pp[1]]) * o.frac * 0.5) - nT;
+      if (m > 0) sets.push({ sts: pp.slice(), n: m });
+    });
+    var act = AL.activeShowers(hourT + HOUR / 2);
+    var vis = act.filter(function (x) { return AL.radiantAlt(x.sh, AL.st('KSO'), hourT + HOUR / 2) > 5; });
+    var shTotal = AL.sum(vis.map(function (x) { return x.zhr; }));
+    var i = 0;
+    sets.forEach(function (set) {
+      for (var k = 0; k < set.n; k++, i++) {
+        var sh = null, p = r() * (shTotal + 24);
+        for (var j = 0; j < vis.length; j++) { p -= vis[j].zhr; if (p <= 0) { sh = vis[j]; break; } }
+        out.push({ sid: 'S' + hourT.toString(36) + i.toString(36), sts: set.sts, t: hourT + r() * HOUR, sh: sh,
+                   v: sh ? sh.v : AL.lerp(SPORADIC_V[0], SPORADIC_V[1], Math.pow(r(), 1.4)),
+                   h0: 88 + (r() - 0.5) * 24, zang: 20 + r() * 60, base: r() });
+      }
+    });
   }
   CACHE[key] = out;
   return out;
@@ -197,16 +210,16 @@ function hourEvents(stId, hourT) {
   var shTotal = 0;
   act.forEach(function (x) { x._alt = AL.radiantAlt(x.sh, st, hourT + HOUR / 2); if (x._alt > 5) shTotal += x.zhr; });
 
-  /* 同時観測ぶん（木曽・明野のみ）。時刻は共通、見え方だけ局ごとに変える */
-  var seeds = (stId === 'KSO' || stId === 'AKN') ? pairSeeds(hourT) : [];
+  /* 同時観測ぶん。時刻は共通で、見え方（等級・角速度）だけ局ごとに変える */
+  var seeds = pairSeeds(hourT).filter(function (sd) { return sd.sts.indexOf(stId) >= 0; });
   seeds.forEach(function (sd) {
     var rr = AL.rng(sd.sid + stId);
     var c = AL.data.cond(st, sd.t);
     var m = AL.clamp(c.limMag + Math.log(Math.max(1e-6, sd.base)) / Math.log(2.5) + (rr() - 0.5) * 0.4, -8, c.limMag);
     /* 同じ流星でも局によって距離と見込む角度が違うので、見かけの角速度は数 % ずれる */
-    var vang = sd.v / (sd.h0 / Math.cos(st.za * AL.d2r)) * AL.r2d * Math.sin(sd.zang * AL.d2r) * (0.92 + 0.16 * rr());
+    var vang = sd.v / (sd.h0 / Math.cos(AL.za(st) * AL.d2r)) * AL.r2d * Math.sin(sd.zang * AL.d2r) * (0.92 + 0.16 * rr());
     var durM = AL.clamp(0.12 + Math.pow(rr(), 2) * 1.5 + Math.max(0, -m) * 0.12, 0.08, 3.2);
-    var t = sd.t + (stId === 'AKN' ? (rr() - 0.5) * 0.26 * 1000 : 0);   /* 時計のずれ ±0.13 秒 */
+    var t = sd.t + (stId === sd.sts[0] ? 0 : (rr() - 0.5) * 0.26 * 1000);   /* PC 時計のずれ ±0.13 秒 */
     out.push({
       id: stId + '-' + sd.sid, shared: sd.sid, t: t, st: stId, mag: m, v: sd.v, vang: vang,
       dur: durM, clip: 2.0 + durM + rr() * 1.2, h0: sd.h0, fx: rr(), fy: rr(),
@@ -246,16 +259,29 @@ AL.data.events = function (stIds, t0, t1, cap) {
   out.from = from; out.truncated = cut;
   return out;
 };
-/* 同時観測の組を取り出す */
-AL.data.pairs = function (t0, t1) {
-  var a = AL.data.events(['KSO'], t0, t1), b = AL.data.events(['AKN'], t0, t1);
-  var byId = {};
-  b.forEach(function (e) { if (e.shared) byId[e.shared] = e; });
+/* 同時観測の取り出し。shared が同じイベントをまとめ、2 局以上で見えたものを返す */
+AL.data.groups = function (t0, t1) {
+  var ev = AL.data.events(AL.STL, t0, t1), by = {};
+  ev.forEach(function (e) { if (e.shared) (by[e.shared] || (by[e.shared] = [])).push(e); });
   var out = [];
-  a.forEach(function (e) {
-    if (e.shared && byId[e.shared]) out.push({ id: e.shared, a: e, b: byId[e.shared], dt: Math.abs(e.t - byId[e.shared].t) });
+  Object.keys(by).forEach(function (k) {
+    var g = by[k].slice().sort(function (a, b) { return a.t - b.t; });
+    if (g.length < 2) return;
+    out.push({ id: k, ev: g, n: g.length, sts: g.map(function (e) { return e.st; }),
+               t: g[0].t, dt: g[g.length - 1].t - g[0].t });
   });
+  out.sort(function (a, b) { return b.t - a.t; });
   return out;
+};
+/* 木曽 × 明野だけを見たいとき（後方互換） */
+AL.data.pairs = function (t0, t1) {
+  return AL.data.groups(t0, t1).filter(function (g) {
+    return g.sts.indexOf('KSO') >= 0 && g.sts.indexOf('AKN') >= 0;
+  }).map(function (g) {
+    var a = g.ev.filter(function (e) { return e.st === 'KSO'; })[0];
+    var b = g.ev.filter(function (e) { return e.st === 'AKN'; })[0];
+    return { id: g.id, a: a, b: b, dt: Math.abs(a.t - b.t) };
+  });
 };
 
 /* ================= 局の現在値 ================= */

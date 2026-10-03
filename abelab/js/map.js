@@ -88,6 +88,12 @@ AL.Map = function (opts) {
   M.viewBox = function () { return vb; };
   /* viewBox の 1 単位が画面で何画素か。記号や文字を一定の大きさに見せるのに使う */
   M.unit = function () { return (wrap.clientWidth || W) / vb.w; };
+  /* 画面座標 → 地図のユーザー座標・緯度経度（向きをマウスで変えるのに使う） */
+  M.toUser = function (cx, cy) {
+    var r = svg.getBoundingClientRect();
+    return { x: vb.x + (cx - r.left) / r.width * vb.w, y: vb.y + (cy - r.top) / r.height * vb.h };
+  };
+  M.toLatLon = function (cx, cy) { var p = M.toUser(cx, cy); return AL.unproj(p.x, p.y); };
   M.inv = function (px, py) { return AL.unproj(px, py); };
   M.fit = function (pts, padFrac) {
     if (!pts.length) return;
@@ -111,7 +117,8 @@ AL.Map = function (opts) {
     var r = svg.getBoundingClientRect();
     var mx = vb.x + (e.clientX - r.left) / r.width * vb.w, my = vb.y + (e.clientY - r.top) / r.height * vb.h;
     var k = Math.exp(e.deltaY * 0.0016);
-    var nw = Math.max(W * 0.01, Math.min(W * 1.4, vb.w * k)), nh = nw / (W / H);
+    var ar0 = vb.w / vb.h;                       /* 表示中の縦横比を保つ */
+    var nw = Math.max(W * 0.01, Math.min(W * 1.4, vb.w * k)), nh = nw / ar0;
     vb = { x: mx - (mx - vb.x) * (nw / vb.w), y: my - (my - vb.y) * (nh / vb.h), w: nw, h: nh };
     apply();
   }, { passive: false });

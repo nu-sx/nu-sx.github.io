@@ -229,8 +229,14 @@ svg.jmap.grabbing { cursor: grabbing; }
 .m-grid .gl { stroke: rgba(255,255,255,.055); stroke-width: 0.6; vector-effect: non-scaling-stroke; }
 .m-grid .gt { fill: #5e656e; font-family: var(--mono); }
 .m-fov polygon { fill-opacity: .14; stroke-width: 1.4; vector-effect: non-scaling-stroke; }
-.m-ov polygon { fill: rgba(255,255,255,.2); stroke: rgba(255,255,255,.55); stroke-dasharray: 4 3;
-  stroke-width: 1.2; vector-effect: non-scaling-stroke; }
+.m-ov { pointer-events: none; }    /* 重なりの面は下の視野へのドラッグを邪魔しない */
+.m-ov polygon.ov2 { fill: rgba(255,255,255,.14); stroke: rgba(255,255,255,.4); stroke-dasharray: 4 3;
+  stroke-width: 1.1; vector-effect: non-scaling-stroke; }
+.m-ov polygon.ov3 { fill: rgba(250,178,25,.26); stroke: rgba(250,178,25,.8); stroke-dasharray: 5 3;
+  stroke-width: 1.6; vector-effect: non-scaling-stroke; }
+.m-fov polygon { cursor: move; }
+.m-st g.handle { cursor: ew-resize; }
+.m-st circle.hit { fill: transparent; }
 .m-ov line { stroke: rgba(255,255,255,.45); stroke-width: 1.2; stroke-dasharray: 2 3; vector-effect: non-scaling-stroke; }
 .m-st circle { stroke: #0b0e12; stroke-width: 1.6; vector-effect: non-scaling-stroke; }
 .m-st text { fill: #e6e7ea; font-weight: 700; paint-order: stroke; stroke: #0b0e12; stroke-width: 2.4px;
@@ -244,3 +250,10 @@ svg.jmap.grabbing { cursor: grabbing; }
 .ctl select { background: var(--bg); color: var(--text-1); border: 1px solid var(--border-2);
   border-radius: 3px; padding: 2px 5px; }
 .ctl input[type=range] { width: 92px; accent-color: #5598e7; }
+
+/* 数値入力（向きと画角） */
+.numin { display: inline-flex; align-items: center; gap: 2px; }
+.numin input { width: 52px; background: var(--bg); color: var(--text-1); border: 1px solid var(--border-2);
+  border-radius: 3px; padding: 1px 4px; font: inherit; font-family: var(--mono); font-size: 11.5px; text-align: right; }
+.numin input:focus { outline: 1px solid var(--series-1); }
+.numin i { font-style: normal; color: var(--text-3); font-size: 11px; }

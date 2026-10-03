@@ -145,8 +145,9 @@ function boot() {
     el('b', { text: 'NU-AbeLab 流星観測ダッシュボード' }), '　日本大学 理工学部 航空宇宙工学科 阿部研究室', el('br'),
     '観測局：日本大学 船橋キャンパス／東京大学 木曽観測所／東京大学宇宙線研究所 明野観測所。', el('br'),
     '機材・運用の諸元は DIMS（Dark matter and Interstellar Meteoroid Study）に準拠：' +
-    'Canon ME20F-SH 系＋35 mm F1.4、視野 54° × 33°、1920 × 1080・30 fps、' +
-    'トリガーは UFOCapture、日没 30 分後から日の出 30 分前まで自動運用。', el('br'),
+    'Canon ME20F-SH 系（35 mm フルサイズ CMOS）＋24 mm レンズ、視野 73.7° × 53.1°、1920 × 1080・30 fps、' +
+    'トリガーは UFOCapture、日没 30 分後から日の出 30 分前まで自動運用。' +
+    '向きは仰角 45° で、木曽は北東・明野は北西・船橋は北北西（「同時観測」の地図から変えられる）。', el('br'),
     '参考：S. Abe et al., “DIMS (Dark matter and Interstellar Meteoroid Study) Experiment”, PoS(ICRC2025)529。', el('br'),
     '地図：都道府県境界は国土数値情報を簡略化したもの。気象衛星ひまわりの画像は気象庁（https://www.jma.go.jp/）から取得している。', el('br'),
     el('span', { style: { opacity: .75 }, text: '本ページは静的なデモで、外部への通信は気象衛星を選んだときの気象庁サーバーへの取得だけである。' })

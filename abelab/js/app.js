@@ -135,7 +135,7 @@ function boot() {
   document.body.appendChild(el('a', { class: 'skiplink', href: '#main', text: '本文へ' }));
   document.body.appendChild(el('div', { class: 'demo-bar' }, [
     el('b', { text: 'デモ版' }),
-    '　表示している観測値・イベントは模擬データです（「同時観測」の気象衛星ひまわりは気象庁の実データ）。局の配置と機材構成、運用の考え方は DIMS（Dark matter and Interstellar Meteoroid Study）の日本側観測に基づきます。',
+    '　表示している観測値・イベントは模擬データです（「同時観測」の気象衛星ひまわりは気象庁の実データ）。',
     el('span', { style: { opacity: .8 } }, ['　実データは ', el('code', { text: 'AL.ingest.ufo() / .csv() / .status()' }), ' から差し込めます。'])
   ]));
   head = el('header', { class: 'topbar' });

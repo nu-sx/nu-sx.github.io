@@ -1,15 +1,18 @@
 /* NU-AbeLab / 観測局と機材
    DIMS（Dark matter and Interstellar Meteoroid Study）の日本側観測と同じ構成を踏襲する。
-   カメラは Canon ME20F-SH 系＋35 mm F1.4、視野 54°×33°、1920×1080、30 fps、
-   トリガーは UFOCapture。運用は日没 30 分後から日の出 30 分前まで自動。 */
+   カメラは Canon ME20F-SH 系（35 mm フルサイズ CMOS）に 24 mm レンズ、1920×1080、30 fps、
+   トリガーは UFOCapture。運用は日没 30 分後から日の出 30 分前まで自動。
+   視野は撮像素子の寸法と焦点距離から 2·atan(寸法/2f) で求める。向き（方位・仰角）と焦点距離は
+   局ごとに持ち、画面から変えられる。 */
 'use strict';
 (function (AL) {
 
 /* 機材の共通諸元 */
 AL.RIG = {
-  sensor: '35 mm フルサイズ CMOS（1920 × 1080）',
-  lens:   '35 mm F1.4',
-  fovW: 54, fovH: 33,            /* 視野 [deg] */
+  sensor: '35 mm フルサイズ CMOS（36 × 24 mm, 1920 × 1080）',
+  sw: 36, sh: 24,                /* 撮像面の寸法 [mm] */
+  fl: 24,                        /* 既定の焦点距離 [mm] */
+  lens:   '24 mm F1.4',
   fps: 30,
   iso: 1600000,                  /* 実運用の設定感度（最大 4,000,000） */
   band: '300–1000 nm',
@@ -19,6 +22,15 @@ AL.RIG = {
   /* 無圧縮 YUYV422 の記録レート：1920×1080×2 byte × 30 fps */
   rateMBs: 1920 * 1080 * 2 * 30 / 1e6
 };
+/* 焦点距離 [mm] → 視野 [deg]。長辺が水平、短辺が上下 */
+AL.fovOf = function (fl) {
+  var f = fl || AL.RIG.fl;
+  return { w: 2 * Math.atan(AL.RIG.sw / 2 / f) * AL.r2d, h: 2 * Math.atan(AL.RIG.sh / 2 / f) * AL.r2d, fl: f };
+};
+AL.fov = function (st) { return AL.fovOf(st.fl); };
+/* 視野の立体角の目安（deg²）。トリガー率は視野の広さに比例する */
+AL.fovArea = function (st) { var v = AL.fov(st); return v.w * v.h; };
+AL.FOV_REF = 54 * 33;              /* DIMS（35 mm レンズ）の視野。トリガー率の基準 */
 
 /* 系列色は data-viz の検証済みスロット 1–3（暗面で全ペア CVD ΔE 9.4）を固定順に割り当てる */
 AL.ST = {
@@ -27,31 +39,34 @@ AL.ST = {
     org: '日本大学 理工学部 航空宇宙工学科 阿部研究室',
     lat: 35.7236, lon: 140.0369, elev: 25,
     color: 'var(--series-1)', hex: '#3987e5',
-    cam: 'Canon ME20F-SHN（カラー）', mode: 'zenith', az: 0, za: 10,
+    cam: 'Canon ME20F-SHN（カラー・フルサイズ）', lensNote: '24 mm F1.4',
+    az: 337.5, el: 45, fl: 24,      /* 北北西・仰角 45° */
     sqm: 18.6, baseRate: 22, disk: 4096, diskBase: 0.84, pc: '制御 PC（Windows 11 / UFOCapture HD2）',
     net: '学内 LAN（1 Gbps）', since: '2026-04',
-    note: '開発・試験と火球監視を兼ねる都市部の局。光害が大きく限界等級は浅いが、' +
-          '機材更新とトリガー調整をここで詰めてから山岳の 2 局へ展開する。'
+    note: '開発・試験と火球監視を兼ねる都市部の局。北北西を向き、関東上空から山岳 2 局の方向までを覆う。' +
+          '光害が大きく限界等級は浅いが、機材更新とトリガー調整をここで詰めてから山岳の 2 局へ展開する。'
   },
   KSO: {
     id: 'KSO', name: '木曽', full: '東京大学 木曽観測所',
     org: '東京大学大学院理学系研究科 附属天文学教育研究センター',
     lat: 35.7972, lon: 137.6256, elev: 1130,
     color: 'var(--series-2)', hex: '#d95926',
-    cam: 'Canon ME20F-SH（モノクロ）', mode: 'pole', az: 0, za: 47,
+    cam: 'Canon ME20F-SH（モノクロ・フルサイズ）', lensNote: '24 mm F1.4',
+    az: 45, el: 45, fl: 24,         /* 北東・仰角 45° */
     sqm: 21.3, baseRate: 55, disk: 8192, diskBase: 0.38, pc: '制御 PC（Windows 11 / UFOCapture HD2）',
     net: '観測所回線（VPN 経由で遠隔操作）', since: '2021-10',
-    note: '西側の局。明野局と北天の同じ空（天頂角 47°）を見込み、高度 100 km で視野が重なるように向ける。'
+    note: '西側の局。北東を向き、北西を向く明野局と高度 80–120 km の層で視野が重なるようにする。'
   },
   AKN: {
     id: 'AKN', name: '明野', full: '東京大学宇宙線研究所 明野観測所',
     org: '東京大学宇宙線研究所',
     lat: 35.7833, lon: 138.5000, elev: 900,
     color: 'var(--series-3)', hex: '#199e70',
-    cam: 'Canon ME20F-SH（モノクロ）', mode: 'pole', az: 0, za: 47,
+    cam: 'Canon ME20F-SH（モノクロ・フルサイズ）', lensNote: '24 mm F1.4',
+    az: 315, el: 45, fl: 24,        /* 北西・仰角 45° */
     sqm: 21.0, baseRate: 50, disk: 8192, diskBase: 0.61, pc: '制御 PC（Windows 11 / UFOCapture HD2）',
     net: '観測所回線（VPN 経由で遠隔操作）', since: '2021-08',
-    note: '東側の局。木曽局と対にして同時流星を取り、速度と軌道を出す。'
+    note: '東側の局。北西を向き、北東を向く木曽局と対にして同時流星を取り、速度と軌道を出す。'
   }
 };
 AL.STL = ['FNB', 'KSO', 'AKN'];                       /* 表示順（系列色の割り当て順でもある） */
@@ -60,15 +75,31 @@ AL.stList = function (ids) { return (ids || AL.STL).map(AL.st); };
 
 /* 同時観測の組。基線長はその場で計算する */
 AL.PAIRS = [['KSO', 'AKN'], ['AKN', 'FNB'], ['KSO', 'FNB']];
+/* 向き・画角を変える。方位は 0–360、仰角は 5–85、焦点距離は 8–135 mm に収める */
+AL.setAim = function (st, a) {
+  if (a.az != null) st.az = ((a.az % 360) + 360) % 360;
+  if (a.el != null) st.el = AL.clamp(a.el, 5, 85);
+  if (a.fl != null) st.fl = AL.clamp(a.fl, 8, 135);
+  return st;
+};
+AL.aimDefaults = { FNB: { az: 337.5, el: 45, fl: 24 }, KSO: { az: 45, el: 45, fl: 24 }, AKN: { az: 315, el: 45, fl: 24 } };
+AL.resetAim = function () { AL.STL.forEach(function (id) { AL.setAim(AL.ST[id], AL.aimDefaults[id]); }); };
+AL.compass16 = function (deg) {
+  var N = ['北', '北北東', '北東', '東北東', '東', '東南東', '南東', '南南東',
+           '南', '南南西', '南西', '西南西', '西', '西北西', '北西', '北北西'];
+  return N[Math.round(((deg % 360) + 360) % 360 / 22.5) % 16];
+};
 AL.baseline = function (a, b) {
   var A = AL.st(a), B = AL.st(b);
   return AL.dist(A.lat, A.lon, B.lat, B.lon);
 };
 /* 高度 h km の層で、その局の視野が覆う範囲（局を原点とする北 / 東 [km]）。
-   カメラは方位 az・天頂角 za を向き、画像の長辺 54° が水平、短辺 33° が上下に対応する。
+   カメラは方位 az・仰角 el を向き、画像の長辺が水平、短辺が上下に対応する。
    短辺は天頂角 za±16.5° に広がるので、地表に落とすと南北に大きく引き伸ばされる。 */
+AL.za = function (st) { return 90 - st.el; };         /* 仰角 → 天頂角 */
 AL.footprint = function (st, h) {
-  var za = st.za * AL.d2r, hw = AL.RIG.fovW / 2 * AL.d2r, hh = AL.RIG.fovH / 2 * AL.d2r;
+  var v = AL.fov(st);
+  var za = AL.za(st) * AL.d2r, hw = v.w / 2 * AL.d2r, hh = v.h / 2 * AL.d2r;
   var near = h * Math.tan(Math.max(0.01, za - hh));    /* 視野の手前端までの水平距離 */
   var far  = h * Math.tan(Math.min(1.50, za + hh));    /* 奥端（天頂角 86° で頭打ち） */
   var slant = h / Math.cos(za);
@@ -83,7 +114,8 @@ AL.footprint = function (st, h) {
    地上に落とした形は矩形ではなく「奥ほど広がる台形」になる。
    ref を渡すと、その地点を原点とする座標系で返す。 */
 AL.footprintPoly = function (st, h, ref) {
-  var za = st.za * AL.d2r, hh = AL.RIG.fovH / 2 * AL.d2r, hw = AL.RIG.fovW / 2 * AL.d2r;
+  var v = AL.fov(st);
+  var za = AL.za(st) * AL.d2r, hh = v.h / 2 * AL.d2r, hw = v.w / 2 * AL.d2r;
   var zN = Math.max(0.004, za - hh), zF = Math.min(1.48, za + hh);   /* 天頂角 85° で頭打ち */
   var dN = h * Math.tan(zN), dF = h * Math.tan(zF);
   var wN = (h / Math.cos(zN)) * Math.tan(hw), wF = (h / Math.cos(zF)) * Math.tan(hw);
@@ -138,6 +170,20 @@ AL.overlapAt = function (a, b, h) {
   return { overlap: areaI > 1, areaKm2: areaI, frac: areaA > 0 ? areaI / areaA : 0,
            poly: inter, a: pa, b: pb, ref: ref,
            sep: AL.dist(A.lat, A.lon, B.lat, B.lon) };
+};
+AL.polyArea = polyArea; AL.clipPoly = clipPoly; AL.ccwPoly = ccw;
+/* 複数局が同時に見込む領域（高度 h km）。3 局そろえば軌道の精度が上がる */
+AL.commonVolume = function (ids, h) {
+  var sts = ids.map(AL.st);
+  var ref = { lat: AL.sum(sts.map(function (x) { return x.lat; })) / sts.length,
+              lon: AL.sum(sts.map(function (x) { return x.lon; })) / sts.length };
+  var poly = null;
+  for (var i = 0; i < sts.length; i++) {
+    var q = ccw(AL.footprintPoly(sts[i], h, ref));
+    poly = poly == null ? q : clipPoly(poly, q);
+    if (poly.length < 3) return { area: 0, poly: [], ref: ref };
+  }
+  return { area: polyArea(poly), poly: poly, ref: ref };
 };
 /* [北, 東] km → 緯度経度 */
 AL.neToLatLon = function (ne, ref) {

@@ -116,235 +116,292 @@ AL.V.events = function (root, ui) {
 /* ================= ④ 同時観測 ================= */
 AL.V.pairs = function (root, ui) {
   var t0 = ui.t0, t1 = ui.t1;
-  var prs = AL.data.pairs(t0, t1);
+  var groups = AL.data.groups(t0, t1);
   var g = el('div', { class: 'grid' });
-  var H = 100;                                   /* 流星の代表的な発光高度 */
-  var ov = AL.overlapAt('KSO', 'AKN', H), hh = AL.overlapHeights('KSO', 'AKN');
-  var kso = AL.st('KSO'), akn = AL.st('AKN'), fnb = AL.st('FNB');
+  var ALT = [80, 90, 100, 110, 120];
+  var curAlt = AL.planAlt || 100;
 
   /* --- 概要 --- */
-  var dts = prs.map(function (p) { return p.dt; }).sort(function (a, b) { return a - b; });
-  var ksoN = AL.summary(['KSO'], t0, t1).total.n;
-  var p0 = panel('同時観測の成立', { col: 'c3', note: '木曽 × 明野' });
+  var dts = groups.map(function (x) { return x.dt; }).sort(function (a, b) { return a - b; });
+  var n3 = groups.filter(function (x) { return x.n >= 3; }).length;
+  var totalN = AL.summary(AL.STL, t0, t1).total.n;
+  var p0 = panel('同時観測の成立', { col: 'c3', note: ui.rangeLabel });
   var b0 = p0.querySelector('.body');
-  AL.add(b0, AL.stat(AL.int(prs.length), '組', ui.rangeLabel + 'の同時イベント'));
+  AL.add(b0, AL.stat(AL.int(groups.length), '件', '2 局以上で捉えた流星'));
   AL.add(b0, el('div', { class: 'grid', style: { gridTemplateColumns: 'repeat(2,1fr)', gap: '6px' } }, [
-    AL.stat(ksoN ? AL.pct(prs.length / ksoN) : '—', '', '木曽の検出に占める割合', { sm: true }),
+    AL.stat(AL.int(n3), '件', '3 局そろった流星', { sm: true }),
+    AL.stat(totalN ? AL.pct(groups.length * 2 / totalN) : '—', '', '全検出に占める割合', { sm: true }),
     AL.stat(dts.length ? AL.int(dts[dts.length >> 1]) : '—', 'ms', '時刻差の中央値', { sm: true }),
-    AL.stat(AL.f(AL.baseline('KSO', 'AKN'), 1), 'km', '基線長', { sm: true }),
-    AL.stat(AL.pct(ov.frac), '', '高度 100 km の視野重なり', { sm: true })
+    AL.stat(AL.int(AL.commonVolume(AL.STL, curAlt).area), 'km²', '3 局共通の領域（' + curAlt + ' km）', { sm: true })
   ]));
   AL.add(b0, el('div', { class: 'note', style: { marginTop: '6px' },
-    text: '2 局で同じ流星を取れると、視差から発光点・消滅点の高度と速度が決まり、軌道要素まで辿れる。' +
-          'DIMS の日本側はこの木曽 × 明野の対を主眼に置いている。' }));
+    text: '2 局で同じ流星を取れると視差から発光点・消滅点の高度と速度が決まり、軌道要素まで辿れる。' +
+          '3 局そろえば幾何が過剰決定になり、誤差を評価できる。' }));
   g.appendChild(p0);
 
-  /* --- 断面図（東西断面）--- */
-  var p1 = panel('視野の重なり（東西断面）', { col: 'c5',
-    note: '両局とも北へ天頂角 ' + kso.za + '°。横軸は基線の中点からの東西距離' });
-  (function () {
-    var W = 520, Hh = 240, pad = { l: 36, r: 10, t: 10, b: 24 };
-    var xs = [-170, 170], ys = [0, 150];
-    var X = function (v) { return pad.l + (v - xs[0]) / (xs[1] - xs[0]) * (W - pad.l - pad.r); };
-    var Y = function (v) { return Hh - pad.b - (v - ys[0]) / (ys[1] - ys[0]) * (Hh - pad.t - pad.b); };
-    var mid = (kso.lon + akn.lon) / 2;
-    var ex = function (st) { return (st.lon - mid) * 111.32 * Math.cos(st.lat * AL.d2r); };
-    var svg = sv('svg', { viewBox: '0 0 ' + W + ' ' + Hh, width: '100%', style: 'display:block' });
-    /* 目盛 */
-    [0, 50, 100, 150].forEach(function (v) {
-      svg.appendChild(sv('line', { x1: X(xs[0]), y1: Y(v), x2: X(xs[1]), y2: Y(v), stroke: 'rgba(255,255,255,.07)' }));
-      svg.appendChild(sv('text', { x: pad.l - 6, y: Y(v) + 3, fill: '#777d86', 'font-size': 10, 'text-anchor': 'end',
-        'font-family': 'ui-monospace,monospace' }, String(v)));
-    });
-    [-150, -100, -50, 0, 50, 100, 150].forEach(function (v) {
-      svg.appendChild(sv('text', { x: X(v), y: Hh - 6, fill: '#777d86', 'font-size': 10, 'text-anchor': 'middle',
-        'font-family': 'ui-monospace,monospace' }, String(v)));
-    });
-    svg.appendChild(sv('text', { x: pad.l - 6, y: Y(150) - 2, fill: '#777d86', 'font-size': 10, 'text-anchor': 'end' }, '高度 km'));
-    /* 流星の発光層 */
-    svg.appendChild(sv('rect', { x: X(xs[0]), y: Y(120), width: X(xs[1]) - X(xs[0]), height: Y(70) - Y(120),
-      fill: 'rgba(255,255,255,.04)' }));
-    svg.appendChild(sv('text', { x: X(xs[1]) - 4, y: Y(118), fill: '#777d86', 'font-size': 10, 'text-anchor': 'end' }, '流星の発光層 70–120 km'));
-    /* 各局の視野（高度が上がるほど東西に広がる扇） */
-    [kso, akn].forEach(function (st) {
-      var e0 = ex(st);
-      var half = function (h) { return (h / Math.cos(st.za * AL.d2r)) * Math.tan(AL.RIG.fovW / 2 * AL.d2r); };
-      var pts = [[e0, 0], [e0 - half(150), 150], [e0 + half(150), 150]];
-      svg.appendChild(sv('polygon', { points: pts.map(function (p) { return X(p[0]) + ',' + Y(p[1]); }).join(' '),
-        fill: st.hex + '26', stroke: st.hex, 'stroke-width': 1.5 }));
-      svg.appendChild(sv('circle', { cx: X(e0), cy: Y(0), r: 4, fill: st.hex, stroke: '#181b1f', 'stroke-width': 1.5 }));
-      svg.appendChild(sv('text', { x: X(e0), y: Y(0) + 16, fill: '#a3a8b0', 'font-size': 11, 'text-anchor': 'middle' }, st.name));
-    });
-    /* 重なり（両方の扇に入る帯） */
-    var halfK = function (h) { return (h / Math.cos(kso.za * AL.d2r)) * Math.tan(AL.RIG.fovW / 2 * AL.d2r); };
-    var lo = null, poly1 = [], poly2 = [];
-    for (var h = 0; h <= 150; h += 2) {
-      var a0 = ex(kso) - halfK(h), a1 = ex(kso) + halfK(h);
-      var b1x = ex(akn) - halfK(h), b2x = ex(akn) + halfK(h);
-      var l = Math.max(a0, b1x), r = Math.min(a1, b2x);
-      if (r > l) { if (lo == null) lo = h; poly1.push([l, h]); poly2.unshift([r, h]); }
-    }
-    if (poly1.length) {
-      svg.appendChild(sv('polygon', { points: poly1.concat(poly2).map(function (p) { return X(p[0]) + ',' + Y(p[1]); }).join(' '),
-        fill: 'rgba(255,255,255,.16)', stroke: 'rgba(255,255,255,.4)', 'stroke-width': 1, 'stroke-dasharray': '3 3' }));
-      svg.appendChild(sv('text', { x: X(0), y: Y(135), fill: '#e6e7ea', 'font-size': 11, 'text-anchor': 'middle' },
-        '両局が見込む空間（高度 ' + lo + ' km 以上）'));
-    }
-    p1.querySelector('.body').appendChild(svg);
-  })();
+  /* --- 重なり面積と高度 --- */
+  var p1 = panel('視野が重なる面積と高度', { col: 'c4', note: '流星の発光層 80–120 km を帯で示す' });
+  var b1 = p1.querySelector('.body');
+  var ovSeries = AL.PAIRS.map(function (pp, i) {
+    var pts = [];
+    for (var h = 60; h <= 140; h += 2) pts.push([h, AL.overlapAt(pp[0], pp[1], h).areaKm2]);
+    return { name: AL.st(pp[0]).name + '×' + AL.st(pp[1]).name, color: [AL.st('FNB').hex, AL.st('KSO').hex, AL.st('AKN').hex][i], points: pts };
+  });
+  var triPts = [];
+  for (var hh2 = 60; hh2 <= 140; hh2 += 2) triPts.push([hh2, AL.commonVolume(AL.STL, hh2).area]);
+  ovSeries.push({ name: '3 局共通', color: '#a3a8b0', points: triPts });
+  C.xy(b1, { series: ovSeries, xmin: 60, xmax: 140, height: 165, band: [80, 120], bandLabel: '発光層',
+    xlabel: '高度 km', yfmt: function (v) { return v >= 1000 ? AL.f(v / 1000, 0) + 'k' : AL.f(v, 0); },
+    xtip: function (v) { return AL.f(v, 0) + ' km'; }, tipfmt: function (v) { return AL.int(v) + ' km²'; } });
+  C.legend(b1, ovSeries.map(function (s2) { return { name: s2.name, color: s2.color }; }));
   g.appendChild(p1);
 
   /* --- 時刻差 --- */
-  var p2 = panel('同時イベントの時刻差', { col: 'c4', note: '2 局の記録時刻のずれ（GPS 同期なしの PC 時計）' });
+  var p2 = panel('同時イベントの時刻差', { col: 'c5', note: '同じ流星を記録した時刻のずれ（PC 時計）' });
   (function () {
     var bins = [], labels = [];
-    for (var i = 0; i < 8; i++) { bins.push(0); labels.push((i * 20) + ''); }
-    prs.forEach(function (p) { var i = Math.min(7, Math.floor(p.dt / 20)); bins[i]++; });
+    for (var i = 0; i < 8; i++) { bins.push(0); labels.push((i * 25) + ''); }
+    groups.forEach(function (x) { bins[Math.min(7, Math.floor(x.dt / 25))]++; });
     C.hist(p2.querySelector('.body'), {
       bins: labels, series: [{ name: '同時イベント', color: '#5598e7', bins: bins }],
-      height: 170, xlabel: 'ms', labelEvery: 2,
-      binTitle: function (i) { return (i * 20) + '–' + ((i + 1) * 20) + ' ms'; }
+      height: 165, xlabel: 'ms', labelEvery: 2,
+      binTitle: function (i) { return (i * 25) + '–' + ((i + 1) * 25) + ' ms'; }
     });
     AL.add(p2.querySelector('.body'), el('div', { class: 'note', style: { marginTop: '4px' },
       text: '映像は 30 fps なので 1 フレーム = 33 ms。これより細かく合わせるには GPS 時刻の重畳が要る。' }));
   })();
   g.appendChild(p2);
 
-  /* --- 日本地図への投影（気象衛星を重ねられる）--- */
-  var ALT = [70, 80, 90, 100, 110, 120];
-  var curAlt = 100;
-  var p3 = panel('視野の投影（日本地図）', { col: 'c7', right: [],
-    note: '各局が高度の層で覆う範囲。ホイールで拡大、ドラッグで移動' });
-  (function () {
-    var b = p3.querySelector('.body');
-    var status = el('span', { class: 'note' });
-    /* 操作：高度・衛星バンド・不透明度 */
-    var selAlt = el('select', { onchange: function () { curAlt = +selAlt.value; draw(true); } },
-      ALT.map(function (h) { return el('option', { value: h, text: h + ' km', selected: h === curAlt ? '' : null }); }));
-    var selBand = el('select', { onchange: function () {
-      sat.setBand(selBand.value || null, function (t) { status.textContent = t; });
-      opa.disabled = !selBand.value;
-    } }, [el('option', { value: '', text: 'なし' })].concat(AL.JMA_BANDS.map(function (bd) {
-      return el('option', { value: bd.key, text: bd.name, title: bd.desc });
-    })));
-    var opa = el('input', { type: 'range', min: 10, max: 100, value: 60, disabled: 'disabled',
-      oninput: function () { sat.setOpacity(opa.value / 100); } });
-    AL.add(p3.querySelector('header .right'), [
-      el('span', { class: 'ctl' }, ['高度', selAlt]),
-      el('span', { class: 'ctl' }, ['気象衛星', selBand, opa])
-    ]);
+  /* ================= 日本地図（向きと画角をマウスで変えられる）================= */
+  var p3 = panel('視野の投影（日本地図）', { col: 'c8', right: [],
+    note: '視野をドラッグで向きを変え、右端の ○ をドラッグで画角を変える' });
+  var p4 = panel('カメラの向きと画角', { col: 'c4', right: [] });
+  var aimBody = p4.querySelector('.body');
+  var mapBody = p3.querySelector('.body');
+  var hint = el('div', { class: 'note', style: { marginTop: '6px' } });
+  var aimHost = el('div');
+  var pairHost = el('div', { style: { marginTop: '10px' } });
+  var status = el('span', { class: 'note' });
 
-    var M = AL.Map();
-    b.appendChild(M.node);
-    M.node.appendChild(el('div', { class: 'maphint', text: 'ひまわり：気象庁' }));
-    var sat = AL.satLayer(M);
+  var M = AL.Map();
+  mapBody.appendChild(M.node);
+  M.node.appendChild(el('div', { class: 'maphint', text: 'ひまわり：気象庁' }));
+  var sat = AL.satLayer(M);
 
-    function poly(g, pts, attrs) {
-      var d = pts.map(function (q) { var xy = AL.proj(q.lon, q.lat); return xy[0].toFixed(1) + ',' + xy[1].toFixed(1); }).join(' ');
-      var e = AL.s('polygon', Object.assign({ points: d }, attrs || {}));
-      g.appendChild(e);
-      return e;
-    }
-    function clearG(g) { while (g.firstChild) g.removeChild(g.firstChild); }
+  /* 操作：高度・気象衛星・向きの初期化 */
+  var selAlt = el('select', { onchange: function () { curAlt = AL.planAlt = +selAlt.value; redrawAll(true); } },
+    ALT.map(function (h) { return el('option', { value: h, text: h + ' km', selected: h === curAlt ? '' : null }); }));
+  var selBand = el('select', { onchange: function () {
+    sat.setBand(selBand.value || null, function (t) { status.textContent = t; });
+    opa.disabled = !selBand.value;
+  } }, [el('option', { value: '', text: 'なし' })].concat(AL.JMA_BANDS.map(function (bd) {
+    return el('option', { value: bd.key, text: bd.name, title: bd.desc });
+  })));
+  var opa = el('input', { type: 'range', min: 10, max: 100, value: 60, disabled: 'disabled',
+    oninput: function () { sat.setOpacity(opa.value / 100); } });
+  AL.add(p3.querySelector('header .right'), [
+    el('span', { class: 'ctl' }, ['高度', selAlt]),
+    el('span', { class: 'ctl' }, ['気象衛星', selBand, opa])
+  ]);
+  AL.add(p4.querySelector('header .right'), [
+    el('button', { class: 'btn', text: '既定に戻す', onclick: function () { AL.resetAim(); redrawAll(true); } })
+  ]);
 
-    function draw(refit) {
-      clearG(M.layers.fov); clearG(M.layers.ov); clearG(M.layers.st);
-      var all = [];
-      /* 各局の視野（天頂角で奥ほど広がる台形） */
-      [kso, akn, fnb].forEach(function (st) {
-        var pts = AL.footprintPoly(st, curAlt).map(function (ne) { return AL.neToLatLon(ne, st); });
-        poly(M.layers.fov, pts, { fill: st.hex, stroke: st.hex });
-        all = all.concat(pts, [{ lat: st.lat, lon: st.lon }]);
+  function clearG(x) { while (x.firstChild) x.removeChild(x.firstChild); }
+  function toLL(ne, ref) { return AL.neToLatLon(ne, ref); }
+  function polyEl(host, pts, attrs) {
+    var d = pts.map(function (q) { var xy = AL.proj(q.lon, q.lat); return xy[0].toFixed(1) + ',' + xy[1].toFixed(1); }).join(' ');
+    var e = AL.s('polygon', Object.assign({ points: d }, attrs || {}));
+    host.appendChild(e);
+    return e;
+  }
+  /* 局座標 [前方, 横] → 緯度経度 */
+  function local(st, fwd, lat_) {
+    var c = Math.cos(st.az * AL.d2r), sn = Math.sin(st.az * AL.d2r);
+    return AL.neToLatLon([fwd * c - lat_ * sn, fwd * sn + lat_ * c], st);
+  }
+
+  /* --- マウスで向きを変える --- */
+  function onDrag(node, move) {
+    node.addEventListener('pointerdown', function (e) {
+      e.stopPropagation(); e.preventDefault();
+      function mv(ev) { move(ev); }
+      function up() { window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); }
+      window.addEventListener('pointermove', mv);
+      window.addEventListener('pointerup', up);
+      move(e);
+    });
+  }
+  function aimTo(st, ev) {
+    var ll = M.toLatLon(ev.clientX, ev.clientY);
+    var dN = (ll.lat - st.lat) * 111.32;
+    var dE = (ll.lon - st.lon) * 111.32 * Math.cos(st.lat * AL.d2r);
+    var d = Math.hypot(dN, dE);
+    AL.setAim(st, { az: Math.atan2(dE, dN) * AL.r2d, el: 90 - Math.atan2(d, curAlt) * AL.r2d });
+    redrawAll();
+  }
+  function fovTo(st, ev) {
+    var ll = M.toLatLon(ev.clientX, ev.clientY);
+    var dN = (ll.lat - st.lat) * 111.32;
+    var dE = (ll.lon - st.lon) * 111.32 * Math.cos(st.lat * AL.d2r);
+    var c = Math.cos(st.az * AL.d2r), sn = Math.sin(st.az * AL.d2r);
+    var lat_ = -dN * sn + dE * c;                       /* 光軸からの横方向の距離 */
+    var slant = curAlt / Math.cos(AL.za(st) * AL.d2r);
+    var hw = Math.atan2(Math.max(1, Math.abs(lat_)), slant);
+    AL.setAim(st, { fl: AL.RIG.sw / 2 / Math.tan(hw) });
+    redrawAll();
+  }
+
+  function drawMap(refit) {
+    clearG(M.layers.fov); clearG(M.layers.ov); clearG(M.layers.st);
+    var all = [];
+    AL.STL.forEach(function (id) {
+      var st = AL.st(id);
+      var pts = AL.footprintPoly(st, curAlt).map(function (ne) { return toLL(ne, st); });
+      var pe = polyEl(M.layers.fov, pts, { fill: st.hex, stroke: st.hex, 'data-st': id });
+      pe.style.cursor = 'move';
+      pe.appendChild(AL.s('title', { text: st.name + '局の視野（ドラッグで向きを変える）' }));
+      onDrag(pe, function (ev) { aimTo(st, ev); });
+      pe.addEventListener('dblclick', function (e2) {
+        e2.stopPropagation(); AL.setAim(st, AL.aimDefaults[id]); redrawAll();
       });
-      /* 木曽 × 明野の重なりと基線 */
-      var ov = AL.overlapAt('KSO', 'AKN', curAlt);
-      if (ov.poly.length > 2) {
-        var pts2 = ov.poly.map(function (ne) { return AL.neToLatLon(ne, ov.ref); });
-        poly(M.layers.ov, pts2);
-        var cx = pts2.reduce(function (a, q) { return a + q.lon; }, 0) / pts2.length;
-        var cy = pts2.reduce(function (a, q) { return a + q.lat; }, 0) / pts2.length;
-        var c = AL.proj(cx, cy);
-        M.layers.ov.appendChild(AL.s('text', { x: c[0], y: c[1], class: 'ovlbl',
-          text: '同時観測の領域 ' + AL.int(ov.areaKm2) + ' km²' }));
+      all = all.concat(pts, [{ lat: st.lat, lon: st.lon }]);
+    });
+    /* 2 局・3 局の重なり */
+    var tri = AL.commonVolume(AL.STL, curAlt);
+    AL.PAIRS.forEach(function (pp) {
+      var o = AL.overlapAt(pp[0], pp[1], curAlt);
+      if (o.poly.length > 2) polyEl(M.layers.ov, o.poly.map(function (ne) { return toLL(ne, o.ref); }),
+        { class: 'ov2' });
+    });
+    if (tri.poly.length > 2) {
+      var tp = tri.poly.map(function (ne) { return toLL(ne, tri.ref); });
+      polyEl(M.layers.ov, tp, { class: 'ov3' });
+      var cx = AL.sum(tp.map(function (q) { return q.lon; })) / tp.length;
+      var cy = AL.sum(tp.map(function (q) { return q.lat; })) / tp.length;
+      var c = AL.proj(cx, cy);
+      M.layers.ov.appendChild(AL.s('text', { x: c[0], y: c[1], text: '3 局共通 ' + AL.int(tri.area) + ' km²' }));
+    }
+    /* 観測局と画角の取っ手 */
+    AL.STL.forEach(function (id) {
+      var st = AL.st(id), xy = AL.proj(st.lon, st.lat);
+      M.layers.st.appendChild(AL.s('circle', { cx: xy[0], cy: xy[1], r: 4, fill: st.hex },
+        [AL.s('title', { text: st.full })]));
+      M.layers.st.appendChild(AL.s('text', { x: xy[0], y: xy[1], 'data-y': xy[1], text: st.name }));
+      var v = AL.fov(st);
+      var mid = curAlt * Math.tan(AL.za(st) * AL.d2r);
+      var half = (curAlt / Math.cos(AL.za(st) * AL.d2r)) * Math.tan(v.w / 2 * AL.d2r);
+      var hp = local(st, mid, half), hx = AL.proj(hp.lon, hp.lat);
+      /* 取っ手は見える円と、掴みやすくするための透明な円の二重にする */
+      var hg = AL.s('g', { class: 'handle' }, [
+        AL.s('circle', { cx: hx[0], cy: hx[1], r: 6, fill: st.hex, stroke: '#e6e7ea', 'stroke-width': 2, class: 'hk' }),
+        AL.s('circle', { cx: hx[0], cy: hx[1], r: 13, fill: 'transparent', class: 'hit' },
+          [AL.s('title', { text: '横へドラッグすると画角（焦点距離）が変わる' })])
+      ]);
+      hg.style.cursor = 'ew-resize';
+      onDrag(hg, function (ev) { fovTo(st, ev); });
+      M.layers.st.appendChild(hg);
+    });
+    if (refit) M.fit(all, 0.08);
+    marks();
+  }
+  function marks() {
+    var k = 1 / Math.max(0.02, M.unit());              /* 画面 1 px ぶんの viewBox 単位 */
+    Array.prototype.forEach.call(M.layers.st.querySelectorAll('circle'), function (c) {
+      var cl = c.getAttribute('class');
+      c.setAttribute('r', ((cl === 'hk' ? 6 : cl === 'hit' ? 14 : 4.5) * k).toFixed(2));
+    });
+    Array.prototype.forEach.call(M.layers.st.querySelectorAll('text'), function (t) {
+      t.setAttribute('font-size', (11 * k).toFixed(2));
+      t.setAttribute('y', (+t.getAttribute('data-y') + 13 * k).toFixed(1));
+    });
+    Array.prototype.forEach.call(M.layers.ov.querySelectorAll('text'), function (t) { t.setAttribute('font-size', (10 * k).toFixed(2)); });
+    Array.prototype.forEach.call(M.svg.querySelectorAll('.m-grid .gt'), function (t) { t.setAttribute('font-size', (5.5 * k).toFixed(2)); });
+  }
+  M.onView = marks;
+
+  /* --- 向きと画角の表（数値でも変えられる）--- */
+  function drawAim() {
+    AL.clear(aimHost);
+    var rows = AL.STL.map(function (id) {
+      var st = AL.st(id), v = AL.fov(st);
+      function num(val, min, max, step, key, unit) {
+        var inp = el('input', { type: 'number', value: AL.f(val, step < 1 ? 1 : 0), min: min, max: max, step: step,
+          oninput: function () {
+            var o = {}; o[key] = +inp.value;
+            AL.setAim(st, o); redrawAll();
+          } });
+        return el('span', { class: 'numin' }, [inp, el('i', { text: unit })]);
       }
-      var a1 = AL.proj(kso.lon, kso.lat), a2 = AL.proj(akn.lon, akn.lat);
-      M.layers.ov.appendChild(AL.s('line', { x1: a1[0], y1: a1[1], x2: a2[0], y2: a2[1] }));
-      /* 観測局 */
-      [kso, akn, fnb].forEach(function (st) {
-        var xy = AL.proj(st.lon, st.lat);
-        M.layers.st.appendChild(AL.s('circle', { cx: xy[0], cy: xy[1], r: 4, fill: st.hex },
-          [AL.s('title', { text: st.full })]));
-        M.layers.st.appendChild(AL.s('text', { x: xy[0], y: xy[1], 'data-y': xy[1], text: st.name }));
-      });
-      if (refit) M.fit(all, 0.1);
-      marks();
-      /* 注記を更新 */
-      hint.textContent = '高度 ' + curAlt + ' km：木曽 × 明野の視野は ' +
-        (ov.overlap ? AL.pct(ov.frac) + ' 重なり、' + AL.int(ov.areaKm2) + ' km² を共有する。' : '重ならない。') +
-        '船橋は現在の向きではこの層で両局と交わらない。';
-    }
-    /* 記号と文字は拡大率によらず同じ大きさに見えるようにする */
-    function marks() {
-      var k = 1 / Math.max(0.02, M.unit());        /* 画面 1 px ぶんの viewBox 単位 */
-      Array.prototype.forEach.call(M.layers.st.querySelectorAll('circle'), function (c) { c.setAttribute('r', (4.2 * k).toFixed(2)); });
-      Array.prototype.forEach.call(M.layers.st.querySelectorAll('text'), function (t) {
-        t.setAttribute('font-size', (11 * k).toFixed(2));
-        t.setAttribute('y', (+t.getAttribute('data-y') + 13 * k).toFixed(1));
-      });
-      Array.prototype.forEach.call(M.layers.ov.querySelectorAll('text'), function (t) { t.setAttribute('font-size', (10 * k).toFixed(2)); });
-      Array.prototype.forEach.call(M.svg.querySelectorAll('.m-grid .gt'), function (t) { t.setAttribute('font-size', (5.5 * k).toFixed(2)); });
-    }
-    M.onView = marks;
-    var hint = el('div', { class: 'note', style: { marginTop: '6px' } });
-    C.legend(b, [kso, akn, fnb].map(function (st) { return { name: st.name + '局の視野', color: st.hex }; })
-      .concat([{ name: '同時観測の領域', color: 'rgba(255,255,255,.45)' }]), { square: true });
-    b.appendChild(hint);
-    b.appendChild(el('div', { class: 'note', style: { marginTop: '2px' } }, [
-      '気象衛星はひまわりの実データ（気象庁）。選んだときだけ取得する。', status
-    ]));
-    draw(true);
-    setTimeout(function () { draw(true); }, 0);          /* パネルの幅が決まってから枠を合わせ直す */
-  })();
-  g.appendChild(p3);
+      return [
+        el('span', null, [el('span', { style: { display: 'inline-block', width: '8px', height: '8px', borderRadius: '2px',
+          background: st.hex, marginRight: '5px' } }), st.name]),
+        num(st.az, 0, 360, 1, 'az', '°'),
+        el('span', { class: 'note', text: AL.compass16(st.az) }),
+        num(st.el, 5, 85, 1, 'el', '°'),
+        num(v.fl, 8, 135, 1, 'fl', 'mm'),
+        AL.f(v.w, 1) + '° × ' + AL.f(v.h, 1) + '°'
+      ];
+    });
+    AL.add(aimHost, AL.table(['局', ['方位', 'num'], '', ['仰角', 'num'], ['焦点距離', 'num'], ['画角', 'num']], rows, { scroll: false }));
+  }
+  /* --- 組ごとの成立 --- */
+  function drawPairs() {
+    AL.clear(pairHost);
+    var rows = AL.PAIRS.map(function (pp) {
+      var o = AL.overlapAt(pp[0], pp[1], curAlt), hr = AL.overlapHeights(pp[0], pp[1]);
+      return [AL.st(pp[0]).name + ' × ' + AL.st(pp[1]).name, AL.f(o.sep, 0) + ' km',
+        o.overlap ? AL.state('good', '重なる', '●') : AL.state('idle', '重ならない', '○'),
+        o.overlap ? AL.pct(o.frac) : '—',
+        o.overlap ? AL.int(o.areaKm2) + ' km²' : '—'];
+    });
+    var tri = AL.commonVolume(AL.STL, curAlt);
+    rows.push(['3 局共通', '—', tri.area > 1 ? AL.state('good', '成立', '●') : AL.state('idle', '不成立', '○'),
+      '—', tri.area > 1 ? AL.int(tri.area) + ' km²' : '—']);
+    AL.add(pairHost, AL.table(['組', ['基線長', 'num'], '高度 ' + curAlt + ' km', ['重なり', 'num'], ['面積', 'num']], rows, { scroll: false }));
+  }
 
-  /* --- 船橋局の扱い --- */
-  var p4 = panel('船橋局を同時観測に加えるには', { col: 'c5', note: '現在の向きでは重ならない' });
-  var b4 = p4.querySelector('.body');
-  var rows = AL.PAIRS.map(function (pp) {
-    var o = AL.overlapAt(pp[0], pp[1], H), hr = AL.overlapHeights(pp[0], pp[1]);
-    return [AL.st(pp[0]).name + ' × ' + AL.st(pp[1]).name, AL.f(o.sep, 1) + ' km',
-      o.overlap ? AL.state('good', '重なる', '●') : AL.state('idle', '重ならない', '○'),
-      o.overlap ? AL.pct(o.frac) : '—',
-      hr.lo ? hr.lo + ' km 以上' : '—'];
-  });
-  AL.add(b4, AL.table(['組', ['基線長', 'num'], '高度 100 km', ['重なり', 'num'], ['重なり始める高度', 'num']], rows, { scroll: false }));
-  /* 船橋から明野の視野中心を見込む向きを出す */
-  (function () {
-    var fc = AL.footprint(akn, H);
-    var midLat2 = akn.lat + fc.mid / 111.32;
-    var dN = (midLat2 - fnb.lat) * 111.32;
-    var dE = (akn.lon - fnb.lon) * 111.32 * Math.cos(fnb.lat * AL.d2r);
-    var az = (Math.atan2(dE, dN) * AL.r2d + 360) % 360;
-    var ground = Math.hypot(dN, dE);
-    var za = Math.atan2(ground, H) * AL.r2d;
-    AL.add(b4, el('div', { class: 'note', style: { marginTop: '8px' } }, [
-      '船橋局は基線 ' + AL.f(AL.baseline('AKN', 'FNB'), 0) + ' km と長く、両局とも北の同じ天頂角を向いているため視野が交わらない。' +
-      '明野局の視野中心（高度 ' + H + ' km）を見込むには、船橋局を方位 ' + AL.f(az, 0) + '°・天頂角 ' + AL.f(za, 0) +
-      '° に向ける必要がある。天頂角が ' + AL.f(za, 0) + '° では視線が大気を長く通り、限界等級がさらに浅くなるため、' +
-      '船橋局は同時観測の 3 局目ではなく、機材試験と明るい火球の監視に充てるのが現実的である。'
-    ]));
-  })();
-  g.appendChild(p4);
+  function redrawAll(refit) {
+    drawMap(refit);
+    drawAim();
+    drawPairs();
+    var tri = AL.commonVolume(AL.STL, curAlt);
+    var ka = AL.overlapAt('KSO', 'AKN', curAlt);
+    var v = AL.fov(AL.st('KSO'));
+    hint.textContent = '高度 ' + curAlt + ' km：木曽 × 明野は ' +
+      (ka.overlap ? AL.pct(ka.frac) + '（' + AL.int(ka.areaKm2) + ' km²）' : '重ならず') +
+      '、3 局共通は ' + (tri.area > 1 ? AL.int(tri.area) + ' km²' : 'なし') + '。' +
+      '視野の下辺は仰角 ' + AL.f(AL.st('KSO').el - v.h / 2, 0) + '° で、そこでは大気減光が効き限界等級は浅くなる。';
+  }
 
-  /* --- 同時イベント表 --- */
-  var p5 = panel('同時観測イベント', { col: 'c12', note: AL.int(prs.length) + ' 組' });
-  AL.add(p5.querySelector('.body'), prs.length ? AL.table(
-    ['時刻（木曽）', ['木曽 等級', 'num'], ['明野 等級', 'num'], ['時刻差', 'num'], ['角速度差', 'num'], '群', '識別子'],
-    prs.slice(0, 200).map(function (p) {
-      return [AL.stamp(p.a.t, { sec: true }), AL.mag(p.a.mag), AL.mag(p.b.mag),
-        AL.int(p.dt) + ' ms', AL.f(Math.abs(p.a.vang - p.b.vang), 1) + ' °/s',
-        p.a.shower || '散在',
-        el('span', { style: { fontFamily: 'var(--mono)', color: 'var(--text-3)' }, text: p.id })];
+  AL.add(mapBody, [hint, el('div', { class: 'note', style: { marginTop: '2px' } }, [
+    '気象衛星はひまわりの実データ（気象庁）。選んだときだけ取得する。', status
+  ])]);
+  C.legend(mapBody, AL.STL.map(function (id) { return { name: AL.st(id).name + 'の視野', color: AL.st(id).hex }; })
+    .concat([{ name: '2 局の重なり', color: 'rgba(255,255,255,.28)' }, { name: '3 局共通', color: 'rgba(250,178,25,.55)' }]), { square: true });
+  AL.add(aimBody, [aimHost, pairHost, el('div', { class: 'note', style: { marginTop: '8px' },
+    text: '既定は 35 mm フルサイズに 24 mm レンズ（画角 73.7° × 53.1°）、仰角 45°、' +
+          '木曽は北東・明野は北西・船橋は北北西。地図の視野をドラッグすると向きが変わり、' +
+          '右端の ○ を横へドラッグすると焦点距離（画角）が変わる。視野をダブルクリックで既定に戻る。' })]);
+  g.appendChild(p3); g.appendChild(p4);
+  redrawAll(true);
+  setTimeout(function () { redrawAll(true); }, 0);
+
+  /* --- 同時イベント一覧 --- */
+  var p5 = panel('同時観測イベント', { col: 'c12', note: AL.int(groups.length) + ' 件' });
+  AL.add(p5.querySelector('.body'), groups.length ? AL.table(
+    ['時刻', ['局数', 'num'], '局', ['等級', 'num'], ['時刻差', 'num'], ['角速度', 'num'], '群', '識別子'],
+    groups.slice(0, 200).map(function (x) {
+      return [AL.stamp(x.t, { sec: true }), x.n,
+        el('span', null, x.ev.map(function (e) {
+          return el('span', { style: { display: 'inline-block', width: '8px', height: '8px', borderRadius: '2px',
+            background: AL.st(e.st).hex, marginRight: '4px' }, title: AL.st(e.st).name });
+        }).concat([el('span', { text: x.sts.map(function (i) { return AL.st(i).name; }).join('・') })])),
+        x.ev.map(function (e) { return AL.mag(e.mag); }).join(' / '),
+        AL.int(x.dt) + ' ms',
+        x.ev.map(function (e) { return AL.f(e.vang, 1); }).join(' / ') + ' °/s',
+        x.ev[0].shower || '散在',
+        el('span', { style: { fontFamily: 'var(--mono)', color: 'var(--text-3)' }, text: x.id })];
     }), { max: '320px' }) : el('div', { class: 'note', text: 'この期間に同時観測は成立していない。' }));
   g.appendChild(p5);
   root.appendChild(g);

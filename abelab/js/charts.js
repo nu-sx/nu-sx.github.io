@@ -214,6 +214,73 @@ C.timeseries = function (host, o) {
   return P;
 };
 
+/* ================= XY 折れ線（時間軸でない図） ================= */
+C.xy = function (host, o) {
+  var P = base(host, o.height || 170, { pad: { l: 46, r: 12, t: 10, b: 26 } });
+  var ser = o.series.filter(function (s) { return s.points && s.points.length; });
+  P.redraw = function () {
+    P.resize(); P.clear();
+    var b = P.box, ctx = P.ctx;
+    var x0 = o.xmin, x1 = o.xmax, ymin = o.ymin == null ? 0 : o.ymin, ymax = o.ymax;
+    if (ymax == null) {
+      ymax = 0;
+      ser.forEach(function (s) { s.points.forEach(function (p) { ymax = Math.max(ymax, p[1]); }); });
+      ymax = ymax <= 0 ? 1 : ymax * 1.15;
+    }
+    var tk = niceTicks(ymin, ymax, 4); ymax = Math.max(ymax, tk[tk.length - 1]);
+    axes(P, null, null, ymin, ymax, o.yfmt);
+    var X = function (v) { return b.x + (v - x0) / (x1 - x0) * b.w; };
+    var Y = function (v) { return b.y + b.h - (v - ymin) / (ymax - ymin) * b.h; };
+    P._X = X; P._Y = Y;
+    if (o.band) {                       /* 注目する範囲の帯 */
+      ctx.fillStyle = 'rgba(255,255,255,.055)';
+      ctx.fillRect(X(o.band[0]), b.y, X(o.band[1]) - X(o.band[0]), b.h);
+      if (o.bandLabel) {
+        ctx.font = '10px -apple-system, sans-serif'; ctx.fillStyle = INK3;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+        ctx.fillText(o.bandLabel, (X(o.band[0]) + X(o.band[1])) / 2, b.y + 2);
+      }
+    }
+    ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    niceTicks(x0, x1, 5).forEach(function (v) {
+      var x = X(v); if (x < b.x - 1 || x > b.x + b.w + 1) return;
+      ctx.strokeStyle = GRID; ctx.beginPath();
+      ctx.moveTo(Math.round(x) + .5, b.y); ctx.lineTo(Math.round(x) + .5, b.y + b.h); ctx.stroke();
+      ctx.fillStyle = INK3; ctx.fillText(o.xfmt ? o.xfmt(v) : String(v), x, b.y + b.h + 5);
+    });
+    if (o.xlabel) { ctx.textAlign = 'right'; ctx.fillStyle = INK3; ctx.fillText(o.xlabel, b.x + b.w, b.y + b.h + 15); }
+    ser.forEach(function (s) {
+      ctx.strokeStyle = s.color; ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+      ctx.beginPath();
+      s.points.forEach(function (p, i) { var x = X(p[0]), y = Y(p[1]); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); });
+      ctx.stroke();
+    });
+  };
+  P.redraw();
+  P.on(function (mx, my) {
+    var b = P.box;
+    if (mx < b.x || mx > b.x + b.w) { P.hideTip(); return; }
+    var x = o.xmin + (mx - b.x) / b.w * (o.xmax - o.xmin);
+    var rows = [], best = null;
+    ser.forEach(function (s) {
+      var p = null, d = Infinity;
+      s.points.forEach(function (q) { var dd = Math.abs(q[0] - x); if (dd < d) { d = dd; p = q; } });
+      if (!p) return;
+      best = p;
+      rows.push('<div class="row"><span class="mark" style="background:' + s.color + '"></span>' +
+                '<span class="nm">' + s.name + '</span><span class="v">' +
+                (o.tipfmt ? o.tipfmt(p[1]) : AL.f(p[1], 1)) + '</span></div>');
+    });
+    if (!rows.length) { P.hideTip(); return; }
+    P.redraw();
+    var ctx = P.ctx, xx = P._X(best[0]);
+    ctx.strokeStyle = 'rgba(255,255,255,.3)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(Math.round(xx) + .5, b.y); ctx.lineTo(Math.round(xx) + .5, b.y + b.h); ctx.stroke();
+    P.showTip('<div class="ttl">' + (o.xtip ? o.xtip(best[0]) : best[0]) + '</div>' + rows.join(''), mx, my);
+  }, function () { P.redraw(); });
+  return P;
+};
+
 /* ================= ヒストグラム ================= */
 C.hist = function (host, o) {
   var P = base(host, o.height || 160, { pad: { l: 38, r: 10, t: 8, b: 24 } });

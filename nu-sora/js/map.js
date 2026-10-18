@@ -303,8 +303,10 @@ NS.Map = function (opts) {
         var hv = opt.halo(st);
         if (hv) NS.add(g, NS.s('circle', { r:hv.r, fill:hv.color, opacity:hv.opacity == null ? 0.3 : hv.opacity, class:'halo' }));
       }
-      if (st.kind === 'u') NS.add(g, NS.s('rect', { x:-5.4, y:-5.4, width:10.8, height:10.8, class:'mk' }));
-      else NS.add(g, NS.s('circle', { r:5.6, class:'mk' }));
+      /* オール日大では拡張局を小さく描き、名前は現状 14 局だけに付ける（首都圏で重なるため） */
+      var k = st.ext ? 0.62 : 1;
+      if (st.kind === 'u') NS.add(g, NS.s('rect', { x:-5.4 * k, y:-5.4 * k, width:10.8 * k, height:10.8 * k, class:'mk' }));
+      else NS.add(g, NS.s('circle', { r:5.6 * k, class:'mk' }));
       if (st.swir) NS.add(g, NS.s('circle', { r:9.4, class:'swirring' }));
       NS.add(g, NS.s('title', { text:st.name + '（' + st.host + '）' }));
       g.addEventListener('pointerenter', function (e) {
@@ -319,7 +321,7 @@ NS.Map = function (opts) {
       g.addEventListener('click', function () { if (M.onStation) M.onStation(st); });
       g.addEventListener('keydown', function (e) { if (e.key === 'Enter' && M.onStation) M.onStation(st); });
       NS.add(gSt, g);
-      if (opt.labels !== false) {
+      if (opt.labels !== false && !st.ext) {
         var lx = xy[0] + (st.labelDx || 9), ly = xy[1] + (st.labelDy || -8);
         NS.add(gLbl, NS.s('text', { x:lx, y:ly, class:'stl', text:opt.labelText ? opt.labelText(st, s) : st.name }));
       }

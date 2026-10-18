@@ -494,3 +494,5 @@ footer{max-width:1440px;margin:0 auto;padding:22px 18px 44px;border-top:1px soli
   flex:1 1 320px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 text.mqt{font-size:12px;font-weight:700;fill:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif}
 text.mqs{font-size:10.5px;fill:var(--muted);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif}
+/* 観測網の規模の切り替え（14 局 ⇔ オール日大） */
+.netseg button{white-space:nowrap}

@@ -87,6 +87,12 @@ function buildHeader() {
     return el('button', { text:L.short, title:L.label, 'aria-pressed':NS.lang === L.id ? 'true' : 'false',
       onclick:function () { NS.setLang(L.id); } });
   }));
+  var netBtn = el('div', { class:'seg netseg', title:'観測網の規模' }, NS.NETS.map(function (N) {
+    var bt = el('button', { title:N.title, 'aria-pressed':NS.NET === N.id ? 'true' : 'false',
+      onclick:function () { NS.setNet(N.id); } });
+    bt.textContent = NS.t(N.label);     /* 局数の置き換え（network.js）を通さない */
+    return bt;
+  }));
   var saved = 'dark';
   try { saved = localStorage.getItem('nusora-theme') || 'dark'; } catch (e) {}
   document.documentElement.setAttribute('data-theme', saved);
@@ -96,11 +102,11 @@ function buildHeader() {
     el('div', { class:'brand' }, [
       el('div', { class:'eyebrow', text:'NU-SORA · Nihon University Sky Observation and Resilience Array' }),
       el('h1', { text:'日本大学 全学屋上観測網「ソラ」' }),
-      el('div', { class:'sub', text:'観測ポータル デモ版　全国 14 局 ／ 全天光学カメラ・4K分光カメラ・インフラサウンド・気象・夜空輝度計・GNSS' })
+      el('div', { class:'sub', text:'観測ポータル デモ版　全国 14 局' + (NS.NET === 'all' ? '（オール日大構想：全学部・全付属校）' : '') + ' ／ 全天光学カメラ・4K分光カメラ・インフラサウンド・気象・夜空輝度計・GNSS' })
     ]),
     el('div', { class:'hstat' }, [
       el('span', { class:'badge ok', id:'netbadge' }, [el('span', { class:'dot' }), '観測網 稼働中']),
-      clock, langBtn, themeBtn
+      clock, netBtn, langBtn, themeBtn
     ])
   ]));
   NS.add(head, el('nav', { class:'tabs', role:'tablist' }, [0, 1].map(function (row) {

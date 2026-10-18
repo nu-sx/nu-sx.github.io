@@ -36,7 +36,6 @@ NS.STATIONS = [
   { id:'MYZ', name:'宮崎局',   en:'Miyazaki',   kind:'s', pref:'宮崎県',  city:'宮崎市',
     lat:31.9300, lon:131.4200, alt:55,  swir:false, host:'宮崎日本大学高等学校・中学校', role:'九州南・射場' }
 ];
-NS.ST = {}; NS.STATIONS.forEach(function (s, i) { s.idx = i; NS.ST[s.id] = s; });
 
 /* 局ごとの素性：光害の強さ（自然夜空 21.9 からの差）、地上騒音、設置日 */
 var SITE = {
@@ -50,6 +49,9 @@ var SITE = {
   MYZ:{ sqm:20.80, noise:0.80, inst:'2028-07-06' }
 };
 NS.STATIONS.forEach(function (s) { Object.assign(s, SITE[s.id]); });
+/* 観測網の規模（14 局／オール日大）を反映する。拠点の一覧は network.js */
+NS.STATIONS = NS.buildNetwork(NS.STATIONS);
+NS.ST = {}; NS.STATIONS.forEach(function (s, i) { s.idx = i; NS.ST[s.id] = s; });
 
 /* =========================================================================
    2. 全局共通のフル構成（機材調査資料 3.1〜3.3 に基づく）

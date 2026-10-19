@@ -138,7 +138,7 @@ NS.add = function (parent, kids) {
 
 /* index.html に直接書かれた文言（フッターなど） */
 function fixStatic() {
-  if (NS.NET !== 'all') return;
+  if (NS.NET !== 'all' || !document.getElementById('main')) return;   /* ポータル本体のページだけ（トップページは自前で置き換える） */
   var w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT), n;
   while ((n = w.nextNode())) { var v = NS.netText(n.nodeValue); if (v !== n.nodeValue) n.nodeValue = v; }
   var m = document.querySelector('meta[name="description"]');

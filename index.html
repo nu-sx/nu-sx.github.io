@@ -42,6 +42,9 @@ h1{font-size:30px;line-height:1.25;margin:6px 0 6px;text-wrap:balance}
   letter-spacing:.08em;font-weight:700;padding:5px 11px;cursor:pointer}
 .langseg button[aria-pressed="true"]{background:var(--accent);color:#fff}
 .page{position:relative}
+/* 観測網の規模の切り替え（14 局 ⇔ オール日大）。言語切り替えの左に置く */
+.netseg{right:96px}
+.netseg button{white-space:nowrap}
 .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
 .tag{font-size:10.5px;letter-spacing:.05em;border:1px solid var(--rule2);color:var(--muted);
   border-radius:999px;padding:2px 9px}
@@ -83,6 +86,7 @@ svg.spark{display:block}
 </head>
 <body>
 <div class="page">
+  <div class="langseg netseg" id="netseg" title="観測網の規模"><button data-n="14" aria-pressed="true" title="現状の申請計画（大学キャンパス 7・付属校 7）">14局</button><button data-n="all" aria-pressed="false" title="全学部・全付属校に展開した将来構想">オール日大</button></div>
   <div class="langseg" id="langseg"><button data-l="ja" aria-pressed="true">JA</button><button data-l="en" aria-pressed="false">EN</button></div>
   <div class="eyebrow">NU-SX · Nihon University Space Science Research Unit</div>
   <h1>日本大学 宇宙科学研究ユニット(NU-SX)　公開デモ</h1>
@@ -225,8 +229,45 @@ var FP_EN = {
   '各デモに表示される観測値・イベントは一部模擬データであり、実際の観測結果ではありません。 観測局の配置・機材構成・解析手法は検討中の計画に基づきます。気象庁のひまわり衛星画像と天気図は実データを 気象庁のサーバーから取得しています。物理関係式・スペクトルの線同定・恒星位置など、実測や文献に基づく部分は 各デモの「このデモについて」に明記しています。':
     'Some of the readings and events shown in these demos are simulated rather than real observations. The station layout, instrumentation and analysis methods follow plans still under consideration. JMA Himawari imagery and surface charts are real data fetched from JMA servers. Anything based on measurement or published work — the physical relations, the spectral line identifications, the stellar positions — is stated explicitly in each demo’s “About this demo” page.'
 };
+FP_EN['14局'] = '14 stations'; FP_EN['オール日大'] = 'All Nihon U';
+FP_EN['観測局は全学部のキャンパス 16 拠点（学部・本部）と全付属校 27 拠点のあわせて 43 局（オール日大構想）。全局が同一のフル構成で、上の 6 系統に加えてカラー補助カメラ・4K 分光カメラ・微動計・制御 PC を備える。<b>表示している値は一部模擬データである。</b>'] =
+  'The All Nihon U plan places 43 stations: 16 faculty and headquarters campuses and 27 affiliated schools. Every station carries the same full kit — the six systems above plus a colour camera, a 4K spectrograph, a microtremor sensor and a control PC. <b>Some of the values shown are simulated.</b>';
 var FP_LANG = 'ja';
 function T(s) { return FP_LANG === 'en' && FP_EN[s] !== undefined ? FP_EN[s] : s; }
+</script>
+<script>
+/* 観測網の規模（14 局／オール日大）。デモ本体（nu-sora/js/network.js）と同じ保存先・URL 引数を使う */
+(function () {
+  var net = '14';
+  try { net = localStorage.getItem('nusora-net') || '14'; } catch (e) {}
+  var q = /[?&]net=(14|all)/.exec(location.search);
+  if (q) net = q[1];
+  window.__NET = net === 'all' ? 'all' : '14';
+  var seg = document.getElementById('netseg');
+  Array.prototype.forEach.call(seg.children, function (b) {
+    b.setAttribute('aria-pressed', b.getAttribute('data-n') === window.__NET ? 'true' : 'false');
+    b.addEventListener('click', function () {
+      var n = b.getAttribute('data-n');
+      if (n === window.__NET) return;
+      try { localStorage.setItem('nusora-net', n); } catch (e) {}
+      var s2 = location.search.replace(/([?&])net=[^&]*&?/, '$1').replace(/[?&]$/, '');
+      if (n === 'all') s2 += (s2 ? '&' : '?') + 'net=all';
+      location.search = s2;
+    });
+  });
+  /* 本文中の局数を置き換える（日本語・英語の両方） */
+  window.__netFix = function (root) {
+    if (window.__NET !== 'all') return;
+    var w = document.createTreeWalker(root || document.querySelector('.page'), NodeFilter.SHOW_TEXT, null);
+    for (var n; (n = w.nextNode()); ) {
+      var v = n.nodeValue, o = v;
+      v = v.replace(/全国 14 拠点/g, '全国 43 拠点（全学部・全付属校）').replace(/全国 14 点/g, '全国 43 点')
+           .replace(/at 14 sites nationwide/g, 'at 43 sites nationwide (every faculty and affiliated school)')
+           .replace(/at 14 sites/g, 'at 43 sites (every faculty and affiliated school)').replace(/at 14 sites/g, 'at 43 sites');
+      if (v !== o) n.nodeValue = v;
+    }
+  };
+})();
 </script>
 <script>
 /* 静的な本文の言語切り替え。初回に日本語を控えておき、行き来できるようにする。 */
@@ -264,31 +305,38 @@ function T(s) { return FP_LANG === 'en' && FP_EN[s] !== undefined ? FP_EN[s] : s
       var l = b.getAttribute('data-l');
       if (l === FP_LANG) return;
       try { localStorage.setItem('nusx-lang', l); } catch (e) {}
-      location.search = l === 'en' ? '?lang=en' : '';
+      location.search = (l === 'en' ? '?lang=en' : '') + (window.__NET === 'all' ? (l === 'en' ? '&' : '?') + 'net=all' : '');
     });
   });
   /* デモ本体へのリンクにも言語を引き継ぐ */
   function relink(l) {
+    var net = window.__NET === 'all';
     Array.prototype.forEach.call(document.querySelectorAll('a[href^="nu-sora"]'), function (a) {
       var h = a.getAttribute('href').split('?')[0];
       var k = h.indexOf('#');
       var base = k >= 0 ? h.slice(0, k) : h, hash = k >= 0 ? h.slice(k) : '';
-      a.setAttribute('href', base + (l === 'en' ? '?lang=en' : '') + hash);
+      var qs = [];
+      if (l === 'en') qs.push('lang=en');
+      if (net) qs.push('net=all');
+      a.setAttribute('href', base + (qs.length ? '?' + qs.join('&') : '') + hash);
     });
   }
+  window.__relink = relink;
   var saved = 'ja';
   try { saved = localStorage.getItem('nusx-lang') || 'ja'; } catch (e) {}
   var q = /[?&]lang=(ja|en)/.exec(location.search);
   if (q) saved = q[1];
   window.__applyLang = apply;
-  if (saved === 'en') { apply('en'); relink('en'); }
+  if (saved === 'en') apply('en');
+  relink(saved);
+  if (window.__netFix) window.__netFix();
 })();
 </script>
 <script>
 /* デモ本体のモジュールを読み込んで、観測局と機材構成のダイジェストを描く。
    初回表示を妨げないよう load 後に読み込み、失敗しても本文は壊れない。 */
 (function () {
-  var FILES = ['core.js', 'data.js', 'map.js', 'starcatalog.js', 'sky.js', 'infra.js', 'sensors.js'];
+  var FILES = ['core.js', 'network.js', 'data.js', 'map.js', 'starcatalog.js', 'sky.js', 'infra.js', 'sensors.js'];
   function load(i) {
     if (i >= FILES.length) {
       if (window.NS) NS.t = T;        /* 全天カメラのキャンバス文字なども訳す */
@@ -389,7 +437,10 @@ function T(s) { return FP_LANG === 'en' && FP_EN[s] !== undefined ? FP_EN[s] : s
       NS.chart.spark(tp, { color:'var(--c-info)', width:200, height:22 })]),
       T('全局の時刻同期（< 1 ms）と電離圏 TEC。多点三角測量と音の到達時刻差はこの精度に支えられる')));
 
-    document.getElementById('dgNote').innerHTML =
+    if (window.__NET === 'all') {
+      document.getElementById('dgNote').innerHTML = T('観測局は全学部のキャンパス 16 拠点（学部・本部）と全付属校 27 拠点のあわせて 43 局（オール日大構想）。全局が同一のフル構成で、上の 6 系統に加えてカラー補助カメラ・4K 分光カメラ・微動計・制御 PC を備える。<b>表示している値は一部模擬データである。</b>');
+      if (window.__netFix) window.__netFix(document.getElementById('digest'));
+    } else document.getElementById('dgNote').innerHTML =
       T('観測局は大学キャンパス拠点 7 局（船橋・郡山・湘南・三島・桜上水・駿河台）と付属校拠点 7 局')
       + T('（札幌・山形・長野・土浦・大垣・長崎・宮崎）。全局が同一のフル構成で、上の 6 系統に加えて')
       + T('カラー補助カメラ・4K 分光カメラ・微動計・制御 PC を備える。船橋・湘南・郡山・三島の 4 局には')

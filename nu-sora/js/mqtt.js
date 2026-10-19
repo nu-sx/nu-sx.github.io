@@ -21,7 +21,7 @@ NS.MQTT = {
   port:{ device:8883, browser:443 },
   keepAlive:30,
   prefix:'nusora',
-  /* 単価は変わるので、申請時に最新値で引き直す前提の概算 */
+  /* 単価は変わるので、導入時に最新値で引き直す前提の概算 */
   price:{ msg:1.20, conn:0.096, rule:0.18, shadow:1.25 }
 };
 
@@ -239,7 +239,7 @@ NS.mqttPanels = function () {
     panel('デバイスシャドウ（望遠鏡）', {
       note:'目標状態（desired）と実状態（reported）を分けて持つ。回線が切れても、つながった時点で差分だけ適用される' },
       el('div', { class:'api', text:JSON.stringify(shadow, null, 2) })),
-    panel('流量と費用の見積り', { note:'上のトピック設計から数えた 14 局ぶんの概算。単価は変わるので申請時に引き直す' }, [
+    panel('流量と費用の見積り', { note:'上のトピック設計から数えた 14 局ぶんの概算。単価は変わるので導入時に引き直す' }, [
       NS.table(['項目', '数量', '算出'], [
         ['定期テレメトリ', NS.f(R.tlmDay, 0) + ' 件/日', R.perMin + ' 件/分 × 60 × 24 × ' + NS.STATIONS.length + ' 局'],
         ['検出イベント', NS.f(R.evtDay, 0) + ' 件/日', '火球・音響・月面閃光の合計（想定）'],

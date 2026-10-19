@@ -1,4 +1,6 @@
 /* NU-SORA デモ / スタイル（提案書図版と同じ配色・書体系統） */
+/* 携帯ブラウザが長い段落（参考文献など）だけ文字を自動で大きくするのを止める */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 :root{
   --bg:#12151A; --bg2:#0D1014; --panel:#191D23; --panel2:#1F242B; --sea:#0E141B; --land:#39424E;
   --ink:#EDEFF2; --ink2:#AEB6C0; --muted:#7E8792; --rule:#2A3038; --rule2:#353C46;

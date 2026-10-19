@@ -1,6 +1,7 @@
 /* NU-AbeLab 流星観測ダッシュボード
    DIMS（Dark matter and Interstellar Meteoroid Study）の DAQ 監視画面にならった意匠。
    色は data-viz の検証済みパレット（系列 3 色は暗面 #181b1f で全ペア CVD ΔE 9.4 / 通常視 20.9）。 */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 
 :root {
   color-scheme: dark;

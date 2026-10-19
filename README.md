@@ -79,7 +79,7 @@ git add -A && git commit -m "Update NU-SORA demo" && git push
 
 ## 出典・参考文献
 
-- 観測局の配置・機材構成：令和9年度 日本大学特別研究の申請計画に基づく
+- 観測局の配置・機材構成：大学研究の社会実装に向けた研究計画に基づく
 - **Abe, S.** (2026), *A calibrated dust-trail model of the Leonid meteoroid stream and forecasts of the 2031–2035 encounters*, [arXiv:2608.25456](https://arxiv.org/abs/2608.25456)（[データ: Zenodo](https://zenodo.org/records/22084210)）
 - **Abe, S., et al.** (2020), *Sodium variation in Geminid meteoroids from (3200) Phaethon*, Planetary and Space Science, **194**, 105040 — [doi:10.1016/j.pss.2020.105040](https://doi.org/10.1016/j.pss.2020.105040)
 - **Abe, S., et al.** (2011), *Near-Ultraviolet and Visible Spectroscopy of HAYABUSA Spacecraft Re-Entry*, PASJ, **63**, 1011–1021 — [doi:10.1093/pasj/63.5.1011](https://doi.org/10.1093/pasj/63.5.1011)

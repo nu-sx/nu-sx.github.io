@@ -6,7 +6,7 @@
 'use strict';
 (function (NS) {
 
-NS.NETS = [{ id:'14', label:'14局', title:'現状の申請計画（大学キャンパス 7・付属校 7）' },
+NS.NETS = [{ id:'14', label:'14局', title:'現状の研究計画（大学キャンパス 7・付属校 7）' },
            { id:'all', label:'オール日大', title:'全学部・全付属校に展開した将来構想' }];
 NS.NET = '14';
 try { NS.NET = localStorage.getItem('nusora-net') || '14'; } catch (e) {}
@@ -152,7 +152,7 @@ if (window.NS_EN) {
   window.NS_EN['14局'] = '14 stations';
   window.NS_EN['オール日大'] = 'All Nihon U';
   window.NS_EN['観測網の規模'] = 'Network scale';
-  window.NS_EN['現状の申請計画（大学キャンパス 7・付属校 7）'] = 'Current proposal (7 university campuses, 7 schools)';
+  window.NS_EN['現状の研究計画（大学キャンパス 7・付属校 7）'] = 'Current research plan (7 university campuses, 7 schools)';
   window.NS_EN['全学部・全付属校に展開した将来構想'] = 'Future plan covering every faculty and affiliated school';
   window.NS_EN['学部拠点（拡張）'] = 'Faculty site (expansion)';
   window.NS_EN['付属校拠点（拡張）'] = 'School site (expansion)';

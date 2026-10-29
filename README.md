@@ -1,3 +1,5 @@
+<img src="nu-sora/assets/icon.svg" width="96" height="96" alt="NU-SORA のアイコン（夜空を流れる火球と屋上局の波面）">
+
 # nu-sx.github.io
 
 日本大学 理工学部（理工学研究所）**宇宙科学研究ユニット NU-SX** が公開する Web デモのサイト。
@@ -30,6 +32,7 @@ nu-sora/                  NU-SORA 観測ポータル デモ版（ビルド不要
   css/app.css
   js/*.js
   assets/                 参照図の置き場
+  assets/icon.svg         NU-SORA のアイコン（ファビコン）。夜空を流れる火球と、屋上局から広がる波面
   README.md               デモの詳細（画面構成・実データと模擬データの区別）
 ```
 

@@ -1,37 +1,60 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
   <title>NU-SORA</title>
-  <!-- 流れる火球: 夜空を火球が 3.6 秒ごとに横切り、屋上局は 2.4 秒ごとに波面を出す。
-       火球の動きは -0.9s から始め、動かない表示（多くのブラウザのファビコン）でも火球が空に見えるようにする -->
+  <!-- 流れる火球: 火球が夜空を横切りながら経路上の 3 点で波面を出し、波面が地上の 4 局に順に届くと局が光る（一周 4 秒）。
+       波面の速さは一周あたり 40（viewBox 単位）。各局の受信時刻 = 発生時刻 + 距離 / 40 のうち最も早いもの。
+       全体を -1.44s から始め、動かない表示（多くのブラウザのファビコン）でも火球と波面が見える瞬間を出す -->
   <defs>
     <radialGradient id="ember" cx=".5" cy="1" r="1"><stop offset="0" stop-color="#3A1226"/><stop offset="1" stop-color="#12151A"/></radialGradient>
-    <linearGradient id="tail" gradientUnits="userSpaceOnUse" x1="-15" y1="-7.5" x2="0" y2="0">
+    <linearGradient id="tail" gradientUnits="userSpaceOnUse" x1="-12" y1="-5" x2="0" y2="0">
       <stop offset="0" stop-color="#FF8FA6" stop-opacity="0"/><stop offset="1" stop-color="#FFE3E9"/>
     </linearGradient>
     <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
       <feGaussianBlur stdDeviation=".9" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
-    <clipPath id="sky"><path d="M7 0 H25 A7 7 0 0 1 32 7 V23 H0 V7 A7 7 0 0 1 7 0 Z"/></clipPath>
+    <clipPath id="sky"><path d="M7 0 H25 A7 7 0 0 1 32 7 V24 H0 V7 A7 7 0 0 1 7 0 Z"/></clipPath>
   </defs>
   <rect width="32" height="32" rx="7" fill="url(#ember)"/>
-  <g fill="#EDEFF2" opacity=".6"><circle cx="25.5" cy="4.5" r=".6"/><circle cx="28.5" cy="10" r=".5"/><circle cx="8.5" cy="14" r=".5"/><circle cx="13" cy="3" r=".45"/></g>
-  <path d="M4 23 H28" stroke="#FF8FA6" stroke-width=".8" opacity=".35"/>
-  <g fill="none" stroke="#FF5277" stroke-linecap="round" filter="url(#glow)">
-    <path d="M11 23 A5 5 0 0 1 21 23" stroke-width="1.9"/>
-    <path d="M7 23 A9 9 0 0 1 25 23" stroke-width="1.5" opacity=".6"/>
-    <path d="M3 23 A13 13 0 0 1 29 23" stroke-width="1.2" opacity=".3"/>
+  <g fill="#EDEFF2" opacity=".6"><circle cx="25.5" cy="4.5" r=".6"/><circle cx="29" cy="18" r=".5"/><circle cx="4" cy="13" r=".5"/><circle cx="16" cy="2.5" r=".45"/></g>
+  <path d="M2.5 24 H29.5" stroke="#FF8FA6" stroke-width=".8" opacity=".45"/>
+
+  <!-- 波面: 火球の経路上 (9,5.5) (15,8) (21,10.5) で、火球が通過する 0.10 / 0.20 / 0.30 に発生 -->
+  <g clip-path="url(#sky)" fill="none" stroke="#FF5277" stroke-width="1.2" filter="url(#glow)">
+    <circle cx="9" cy="5.5" r=".5" opacity="0">
+      <animate attributeName="r" values=".5;.5;20;20" keyTimes="0;.10;.60;1" dur="4s" begin="-1.44s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0;0;.9;0;0" keyTimes="0;.10;.13;.60;1" dur="4s" begin="-1.44s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="15" cy="8" r=".5" opacity="0">
+      <animate attributeName="r" values=".5;.5;20;20" keyTimes="0;.20;.70;1" dur="4s" begin="-1.44s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0;0;.9;0;0" keyTimes="0;.20;.23;.70;1" dur="4s" begin="-1.44s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="21" cy="10.5" r=".5" opacity="0">
+      <animate attributeName="r" values=".5;.5;20;20" keyTimes="0;.30;.80;1" dur="4s" begin="-1.44s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0;0;.9;0;0" keyTimes="0;.30;.33;.80;1" dur="4s" begin="-1.44s" repeatCount="indefinite"/>
+    </circle>
   </g>
-  <circle cx="16" cy="23" r="3" fill="none" stroke="#FF8FA6" stroke-width="1.1" clip-path="url(#sky)">
-    <animate attributeName="r" values="3;17" dur="2.4s" repeatCount="indefinite"/>
-    <animate attributeName="opacity" values="1;0" dur="2.4s" repeatCount="indefinite"/>
-  </circle>
+
+  <!-- 火球: (3,3) から (27,13) へ 0〜0.40 で横切る -->
   <g clip-path="url(#sky)">
-    <g transform="translate(19.6 10.8)">
-      <animateTransform attributeName="transform" type="translate" values="2 2;26 14;26 14" keyTimes="0;.34;1" dur="3.6s" begin="-0.9s" repeatCount="indefinite"/>
-      <animate attributeName="opacity" values="0;1;1;0;0" keyTimes="0;.04;.28;.34;1" dur="3.6s" begin="-0.9s" repeatCount="indefinite"/>
-      <path d="M-15 -7.5 L-0.45 0.89 L0.45 -0.89 Z" fill="url(#tail)"/>
-      <circle r="2.6" fill="#FF5277" opacity=".5" filter="url(#glow)"/>
-      <circle r="1.4" fill="#fff"/>
+    <g transform="translate(24.6 12)">
+      <animateTransform attributeName="transform" type="translate" values="3 3;27 13;27 13" keyTimes="0;.40;1" dur="4s" begin="-1.44s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0;1;1;0;0" keyTimes="0;.04;.38;.44;1" dur="4s" begin="-1.44s" repeatCount="indefinite"/>
+      <path d="M-12 -5 L-0.37 0.88 L0.37 -0.88 Z" fill="url(#tail)"/>
+      <circle r="2.4" fill="#FF5277" opacity=".5" filter="url(#glow)"/>
+      <circle r="1.3" fill="#fff"/>
     </g>
   </g>
-  <circle cx="16" cy="23" r="1.8" fill="#fff" filter="url(#glow)"/>
+
+  <!-- 地上の 4 局: 受信時刻 0.568 / 0.571 / 0.615 / 0.660 に光る -->
+  <g fill="#FF5277" filter="url(#glow)">
+    <circle cx="6" cy="24" r="2.8" opacity="0"><animate attributeName="opacity" values="0;0;.95;0;0" keyTimes="0;.568;.59;.74;1" dur="4s" begin="-1.44s" repeatCount="indefinite"/></circle>
+    <circle cx="12.5" cy="24" r="2.8" opacity="0"><animate attributeName="opacity" values="0;0;.95;0;0" keyTimes="0;.571;.593;.743;1" dur="4s" begin="-1.44s" repeatCount="indefinite"/></circle>
+    <circle cx="19.5" cy="24" r="2.8" opacity="0"><animate attributeName="opacity" values="0;0;.95;0;0" keyTimes="0;.615;.637;.787;1" dur="4s" begin="-1.44s" repeatCount="indefinite"/></circle>
+    <circle cx="26" cy="24" r="2.8" opacity="0"><animate attributeName="opacity" values="0;0;.95;0;0" keyTimes="0;.66;.682;.832;1" dur="4s" begin="-1.44s" repeatCount="indefinite"/></circle>
+  </g>
+  <g fill="#EDEFF2">
+    <path d="M4.6 25.2 L6 22.6 L7.4 25.2 Z"/>
+    <path d="M11.1 25.2 L12.5 22.6 L13.9 25.2 Z"/>
+    <path d="M18.1 25.2 L19.5 22.6 L20.9 25.2 Z"/>
+    <path d="M24.6 25.2 L26 22.6 L27.4 25.2 Z"/>
+  </g>
 </svg>

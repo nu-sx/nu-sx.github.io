@@ -1,4 +1,4 @@
-<img src="nu-sora/assets/icon.svg" width="96" height="96" alt="NU-SORA のアイコン（夜空を流れる火球と屋上局の波面）">
+<img src="nu-sora/assets/icon.svg" width="96" height="96" alt="NU-SORA のアイコン（夜空を流れる火球の波面を地上の複数の局で受信する）">
 
 # nu-sx.github.io
 
@@ -32,7 +32,7 @@ nu-sora/                  NU-SORA 観測ポータル デモ版（ビルド不要
   css/app.css
   js/*.js
   assets/                 参照図の置き場
-  assets/icon.svg         NU-SORA のアイコン（ファビコン）。夜空を流れる火球と、屋上局から広がる波面
+  assets/icon.svg         NU-SORA のアイコン（ファビコン）。夜空を流れる火球が出す波面を、地上の複数の局で受信する
   README.md               デモの詳細（画面構成・実データと模擬データの区別）
 ```
 

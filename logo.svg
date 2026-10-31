@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 400" width="1600" height="400">
+  <title>NU-SORA — Nihon University Sky Observation and Resilience Array</title>
+  <!-- 横長のロゴ（README 用）。左の図柄は nu-sora/assets/icon.svg（ファビコン）の一瞬を止めたもの:
+       火球が夜空を横切り終え、経路上の 3 点から出た波面が地上の局に届いて、左の 2 局が光ったところ -->
+  <defs>
+    <radialGradient id="ember" cx=".5" cy="1" r="1"><stop offset="0" stop-color="#3A1226"/><stop offset="1" stop-color="#12151A"/></radialGradient>
+    <linearGradient id="tail" gradientUnits="userSpaceOnUse" x1="-12" y1="-5" x2="0" y2="0">
+      <stop offset="0" stop-color="#FF8FA6" stop-opacity="0"/><stop offset="1" stop-color="#FFE3E9"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation=".9" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <clipPath id="sky"><path d="M7 0 H25 A7 7 0 0 1 32 7 V24 H0 V7 A7 7 0 0 1 7 0 Z"/></clipPath>
+  </defs>
+
+  <rect width="1600" height="400" fill="#131A26"/>
+
+  <!-- 図柄（32 単位の viewBox を 300 px に） -->
+  <g transform="translate(70 50) scale(9.375)">
+    <rect width="32" height="32" rx="7" fill="url(#ember)"/>
+    <g fill="#EDEFF2" opacity=".6"><circle cx="25.5" cy="4.5" r=".6"/><circle cx="29" cy="18" r=".5"/><circle cx="4" cy="13" r=".5"/><circle cx="16" cy="2.5" r=".45"/></g>
+    <path d="M2.5 24 H29.5" stroke="#FF8FA6" stroke-width=".8" opacity=".45"/>
+    <g clip-path="url(#sky)" fill="none" stroke="#FF5277" stroke-width="1.2" filter="url(#glow)">
+      <circle cx="9" cy="5.5" r="18.5" opacity=".28"/>
+      <circle cx="15" cy="8" r="14.5" opacity=".5"/>
+      <circle cx="21" cy="10.5" r="10.5" opacity=".72"/>
+    </g>
+    <g clip-path="url(#sky)">
+      <g transform="translate(23.5 11.5)">
+        <path d="M-12 -5 L-0.37 0.88 L0.37 -0.88 Z" fill="url(#tail)"/>
+        <circle r="2.4" fill="#FF5277" opacity=".5" filter="url(#glow)"/>
+        <circle r="1.3" fill="#fff"/>
+      </g>
+    </g>
+    <g fill="#FF5277" filter="url(#glow)">
+      <circle cx="6" cy="24" r="2.8" opacity=".85"/>
+      <circle cx="12.5" cy="24" r="2.8" opacity=".85"/>
+    </g>
+    <g fill="#EDEFF2">
+      <path d="M4.6 25.2 L6 22.6 L7.4 25.2 Z"/>
+      <path d="M11.1 25.2 L12.5 22.6 L13.9 25.2 Z"/>
+      <path d="M18.1 25.2 L19.5 22.6 L20.9 25.2 Z"/>
+      <path d="M24.6 25.2 L26 22.6 L27.4 25.2 Z"/>
+    </g>
+  </g>
+
+  <!-- 文字 -->
+  <text x="430" y="185" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-weight="700" font-size="150" letter-spacing="-2" fill="#FFFFFF">NU-SORA</text>
+  <text x="1150" y="172" font-family="Hiragino Sans, sans-serif" font-weight="600" font-size="46" fill="#C9D3E3">ソラ</text>
+  <text x="432" y="268" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="43" fill="#E6ECF5"><tspan fill="#FF5277">N</tspan>ihon <tspan fill="#FF5277">U</tspan>niversity <tspan fill="#FF5277">S</tspan>ky <tspan fill="#FF5277">O</tspan>bservation and <tspan fill="#FF5277">R</tspan>esilience <tspan fill="#FF5277">A</tspan>rray</text>
+  <text x="432" y="333" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="30" fill="#8C97A8">Space Science Research Unit (NU-SX), Nihon University</text>
+</svg>

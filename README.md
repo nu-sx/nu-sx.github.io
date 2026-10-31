@@ -1,4 +1,4 @@
-<img src="nu-sora/assets/icon.svg" width="96" height="96" alt="NU-SORA のアイコン（夜空を流れる火球の波面を地上の複数の局で受信する）">
+<p align="center"><img src="logo.png" width="800" alt="NU-SORA — Nihon University Sky Observation and Resilience Array（夜空を流れる火球の波面を地上の複数の局で受信するアイコンつき）"></p>
 
 # nu-sx.github.io
 
@@ -26,6 +26,7 @@ Organization `nu-sx` 配下の `<org>.github.io` なので、**組織サイト**
 
 ```
 index.html                サイト表紙（デモ一覧＋観測局と機材構成のダイジェスト）
+logo.svg / logo.png       README の横長ロゴ（左の図柄はアイコンの一瞬を止めたもの。PNG は logo.svg から rsvg-convert で書き出す）
 .nojekyll                 Jekyll による処理を無効化
 nu-sora/                  NU-SORA 観測ポータル デモ版（ビルド不要の静的サイト）
   index.html

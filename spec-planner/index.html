@@ -1,0 +1,989 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>分光観測プランナー</title>
+<meta name="robots" content="noindex">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+JP:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: 計器卓。左に機材パラメータのレール、右に「センサー面」を主役にした作業面。
+   センサー面は実物どおり常に暗く、周囲のUIだけが明暗テーマに従う。アクセントは Na D 線 (589 nm) の橙。 */
+:root {
+  --bg: #eceff4; --surface: #f6f7fa; --card: #ffffff; --fg: #161b26; --muted: #5a6475; --line: #d3d9e3;
+  --accent: #a85a00; --accent-soft: #fbe8cc; --accent-fg: #ffffff;
+  --good: #19794a; --good-soft: #dff3e8; --warn: #9a5b00; --warn-soft: #fdeecf; --crit: #b93426; --crit-soft: #fbe1dd;
+  --s0: #d9480f; --s1: #2563c9; --s2: #0f8a6d; --band: #7b2fbe;
+  --stage: #0d111a; --sensor: #04060a; --stage-fg: #e3e8f0; --stage-muted: #8c96a8; --stage-line: #2b3447;
+  --font: "IBM Plex Sans JP", "Hiragino Sans", "Yu Gothic UI", "Noto Sans JP", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --r: 6px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0b0e14; --surface: #121722; --card: #171d2a; --fg: #e6eaf2; --muted: #98a2b4; --line: #2a3345;
+  --accent: #ffb454; --accent-soft: #3b2a10; --accent-fg: #1a1203;
+  --good: #4cc38a; --good-soft: #12301f; --warn: #f0b24a; --warn-soft: #382a0c; --crit: #ff8272; --crit-soft: #3d1813;
+  --s0: #e8662e; --s1: #3b7fe6; --s2: #1fa886; --band: #b48cf2;
+  color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0b0e14; --surface: #121722; --card: #171d2a; --fg: #e6eaf2; --muted: #98a2b4; --line: #2a3345;
+  --accent: #ffb454; --accent-soft: #3b2a10; --accent-fg: #1a1203;
+  --good: #4cc38a; --good-soft: #12301f; --warn: #f0b24a; --warn-soft: #382a0c; --crit: #ff8272; --crit-soft: #3d1813;
+  --s0: #e8662e; --s1: #3b7fe6; --s2: #1fa886; --band: #b48cf2;
+  color-scheme: dark }
+
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.55 var(--font); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
+button, input, select { font: inherit; color: inherit; }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---- header ---- */
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 9; background: var(--surface); border-bottom: 1px solid var(--line); }
+.top::after { content: ""; display: block; height: 2px;
+  background: linear-gradient(90deg, #5a3fd0, #2b6cf0 18%, #18b6c9 34%, #2fbf4f 48%, #e6d32a 62%, #ff9a2e 74%, #e8402a 88%, #7a1d14); }
+.top-in { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding-block: 10px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.brand { display: flex; align-items: baseline; gap: 10px; margin-right: auto; min-width: 0; }
+.brand h1 { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: .02em; }
+.brand span { color: var(--muted); font-size: 12px; font-family: var(--mono); }
+.actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.btn { border: 1px solid var(--line); background: var(--card); border-radius: var(--r); padding: 5px 11px; cursor: pointer; font-size: 13px; white-space: nowrap; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); font-weight: 600; }
+.btn.on { background: var(--accent-soft); border-color: var(--accent); }
+.btn.sm { padding: 2px 8px; font-size: 12px; }
+
+/* ---- shell ---- */
+.shell { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 16px; align-items: start; padding-block: 16px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.rail { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 66px); max-height: calc(100vh - 82px); overflow-y: auto;
+  display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.work { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+@media (max-width: 920px) { .shell { grid-template-columns: minmax(0, 1fr); } .rail { position: static; max-height: none; } }
+
+/* ---- rail ---- */
+.sec { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); }
+.sec > summary { cursor: pointer; padding: 8px 12px; font-weight: 600; font-size: 13px; display: flex; gap: 8px; align-items: baseline; }
+.sec > summary small { margin-left: auto; color: var(--muted); font-weight: 400; font-family: var(--mono); font-size: 11.5px; text-align: right; }
+.sec-body { padding: 2px 12px 12px; display: flex; flex-direction: column; gap: 9px; }
+.sec select { width: 100%; padding: 5px 6px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); min-width: 0; }
+.prm { display: grid; grid-template-columns: minmax(0, 1fr) 88px; gap: 1px 8px; align-items: center; }
+.prm label { font-size: 12.5px; }
+.prm label i { font-style: normal; color: var(--muted); font-size: 11.5px; }
+.prm input[type=number] { width: 100%; text-align: right; padding: 3px 6px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); font-family: var(--mono); font-size: 12.5px; }
+.prm input[type=number].bad { border-color: var(--crit); background: var(--crit-soft); }
+.prm input[type=range], .x0 input[type=range] { grid-column: 1 / -1; width: 100%; margin: 0; accent-color: var(--accent); height: 18px; }
+.hint { color: var(--muted); font-size: 11.5px; margin: 0; }
+.x0-head { display: flex; justify-content: space-between; align-items: baseline; font-size: 12.5px; }
+.rowbtns { display: flex; flex-wrap: wrap; gap: 5px; }
+.grp { display: flex; flex-direction: column; gap: 4px; }
+.grp-h { display: flex; align-items: center; gap: 6px; background: none; border: 0; padding: 2px 0; cursor: pointer; font-weight: 600; font-size: 12.5px; text-align: left; }
+.grp-h small { color: var(--muted); font-weight: 400; font-family: var(--mono); }
+.grp-h em { margin-left: auto; font-style: normal; font-weight: 400; font-size: 11px; color: var(--muted); text-decoration: underline; }
+.sw { width: 10px; height: 10px; border-radius: 2px; flex: none; display: inline-block; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip { position: relative; border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; font-size: 11.5px; cursor: pointer; color: var(--muted); background: var(--surface); font-family: var(--mono); }
+.chip input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.chip:has(input:checked) { color: var(--fg); border-color: var(--fg); background: var(--card); font-weight: 600; }
+.chip:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* ---- work: verdict + KPIs ---- */
+.verdict { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 3px 12px 3px 9px; font-weight: 600; font-size: 13px; }
+.pill.good { background: var(--good-soft); color: var(--good); } .pill.warn { background: var(--warn-soft); color: var(--warn); }
+.pill.crit { background: var(--crit-soft); color: var(--crit); } .pill.mute { background: var(--surface); color: var(--muted); border: 1px solid var(--line); }
+.verdict p { margin: 0; color: var(--muted); font-size: 12.5px; min-width: 0; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.kpi { background: var(--card); padding: 9px 12px 10px; min-width: 0; }
+.kpi dt { font-size: 11.5px; color: var(--muted); letter-spacing: .04em; }
+.kpi dd { margin: 0; }
+.kpi .v { font-family: var(--mono); font-size: 20px; font-weight: 600; line-height: 1.25; white-space: nowrap; }
+.kpi .v u { text-decoration: none; font-size: 12px; font-weight: 400; color: var(--muted); margin-left: 3px; }
+.kpi .s { font-size: 11.5px; color: var(--muted); font-family: var(--mono); overflow-wrap: anywhere; }
+
+/* ---- cards ---- */
+.card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); min-width: 0; }
+.card-h { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 9px 12px; }
+.card-h h2 { margin: 0 auto 0 0; font-size: 14px; font-weight: 600; }
+.stage { position: relative; background: var(--stage); touch-action: pan-y; border-radius: 0 0 var(--r) var(--r); overflow: hidden; }
+.stage svg, .chart svg { display: block; }
+.chart { position: relative; }
+.tip { position: absolute; pointer-events: none; z-index: 3; background: var(--card); color: var(--fg); border: 1px solid var(--line); border-radius: 4px;
+  padding: 5px 8px; font-size: 11.5px; line-height: 1.5; font-family: var(--mono); white-space: nowrap; box-shadow: 0 2px 10px rgba(0,0,0,.25); }
+.tip b { font-weight: 600; } .tip i { font-style: normal; color: var(--muted); }
+.tip .k { display: inline-block; width: 14px; height: 2px; vertical-align: middle; margin-right: 5px; }
+
+.cov { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 14px 28px; padding: 4px 12px 14px; }
+@media (max-width: 700px) { .cov { grid-template-columns: minmax(0, 1fr); } }
+.cov h3 { margin: 0 0 6px; font-size: 12px; font-weight: 500; color: var(--muted); letter-spacing: .04em; }
+.cov-bar { position: relative; height: 22px; border-radius: 3px; overflow: hidden; border: 1px solid var(--line); }
+.cov-bar > div { position: absolute; top: 0; bottom: 0; }
+.cov-out { background: repeating-linear-gradient(135deg, var(--card) 0 4px, transparent 4px 7px); opacity: .88; }
+.cov-mark { width: 2px; background: var(--fg); }
+.cov-ends { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+.cov-notes { list-style: none; margin: 6px 0 0; padding: 0; font-size: 12px; display: flex; flex-direction: column; gap: 1px; }
+.cov-notes b { font-family: var(--mono); font-weight: 600; }
+.meter { margin-bottom: 9px; }
+.meter-h { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; }
+.meter-t { height: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; overflow: hidden; margin-top: 3px; }
+.meter-t div { height: 100%; background: var(--s1); border-radius: 0 4px 4px 0; }
+.meter.over .meter-t div { background: var(--crit); }
+
+/* ---- tabs ---- */
+.tabs { display: flex; flex-wrap: wrap; gap: 2px; padding: 6px 8px 0; border-bottom: 1px solid var(--line); }
+.tab { border: 0; background: none; padding: 7px 12px; cursor: pointer; font-size: 13px; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tab[aria-selected=true] { color: var(--fg); font-weight: 600; border-bottom-color: var(--accent); }
+.panel { padding: 12px; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12px; color: var(--muted); margin-bottom: 4px; align-items: center; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { display: inline-block; width: 18px; height: 0; border-top: 2px solid; }
+.legend i.dash { border-top-style: dashed; } .legend i.dot { border-top-style: dotted; border-top-color: var(--muted); }
+.legend i.blk { height: 10px; border: 0; background: var(--band); opacity: .3; }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+th, td { padding: 5px 9px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font-weight: 500; color: var(--muted); font-size: 11.5px; position: sticky; top: 0; background: var(--card); }
+th:first-child, td:first-child { text-align: left; }
+td.l { text-align: left; } td.num { font-family: var(--mono); }
+tr.dim td { color: var(--muted); }
+.st { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 600; border-radius: 3px; padding: 0 6px; }
+.st.good { color: var(--good); background: var(--good-soft); } .st.warn { color: var(--warn); background: var(--warn-soft); }
+.st.crit { color: var(--crit); background: var(--crit-soft); } .st.mute { color: var(--muted); background: var(--surface); }
+.report { margin: 0; padding: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); font: 12.5px/1.6 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.notes { margin: 12px 0 0; padding-left: 1.2em; color: var(--muted); font-size: 12px; max-width: 75ch; }
+.empty { color: var(--muted); padding: 18px 4px; font-size: 13px; }
+.toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--fg); color: var(--bg);
+  padding: 7px 14px; border-radius: var(--r); font-size: 13px; z-index: 20; }
+.stale { opacity: .45; }
+@media (prefers-reduced-motion: no-preference) { .meter-t div { transition: width .15s; } }
+</style>
+
+<header class="top"><div class="top-in">
+  <div class="brand"><h1>分光観測プランナー</h1><span>Spectroscopic Observation Planner</span></div>
+  <div class="actions">
+    <button class="btn" id="btnAddCmp" title="現在の構成を比較表に追加">＋ 比較に追加</button>
+    <button class="btn" id="btnLoad" title="保存した構成ファイル (.json) を読み込む">構成を読込</button>
+    <button class="btn local-only" id="btnSave" title="現在の構成を .json で保存">構成を保存</button>
+    <button class="btn" id="btnReset" title="すべての入力を初期値に戻す">初期値に戻す</button>
+    <button class="btn local-only" id="btnTheme" title="表示テーマを切り替える">テーマ: 自動</button>
+    <input type="file" id="fileIn" accept=".json,application/json" hidden>
+  </div>
+</div></header>
+
+<div class="shell">
+  <aside class="rail" aria-label="機材パラメータ">
+    <details class="sec" open><summary>センサー <small id="sumSensor"></small></summary><div class="sec-body">
+      <select id="selSensor" aria-label="センサーのプリセット"></select><div id="prm-sensor"></div></div></details>
+    <details class="sec" open><summary>レンズ <small id="sumLens"></small></summary><div class="sec-body">
+      <select id="selLens" aria-label="レンズのプリセット"></select><div id="prm-lens"></div></div></details>
+    <details class="sec" open><summary>透過型グレーティング (対物) <small id="sumGrat"></small></summary><div class="sec-body">
+      <select id="selGrat" aria-label="グレーティングのプリセット"></select><div id="prm-grat"></div></div></details>
+    <details class="sec" open><summary>配置 (0次像の水平位置) <small id="sumX0"></small></summary><div class="sec-body x0">
+      <div class="x0-head"><label for="rgX0">0次位置 (センサー半幅に対する割合)</label><b class="num" id="x0Val"></b></div>
+      <input type="range" id="rgX0" min="-0.95" max="0.95" step="0.01">
+      <p class="hint">−0.95 = 左端寄り / 0 = 中心 / +0.95 = 右端寄り。分散は右向き。図の ★ をドラッグしても動かせます。</p>
+      <button class="btn" id="btnRec">推奨位置に設定 (0次+1次を中央配置)</button></div></details>
+    <details class="sec" open><summary>流星スペクトル輝線 <small id="sumLines"></small></summary><div class="sec-body">
+      <div class="rowbtns"><button class="btn sm" data-set="all">全選択</button><button class="btn sm" data-set="none">全解除</button>
+        <button class="btn sm" data-set="strong">強線のみ</button><button class="btn sm" data-set="default">既定に戻す</button></div>
+      <p class="hint">■ 非常に強い　● 強い　・ 通常 (強度は参考資料に基づく)。種別名を押すと種別ごとに切り替わります。</p>
+      <div id="lineGroups" style="display:flex;flex-direction:column;gap:9px"></div></div></details>
+  </aside>
+
+  <main class="work" id="work">
+    <div class="verdict" id="verdict"></div>
+    <dl class="kpis" id="kpis"></dl>
+
+    <section class="card">
+      <div class="card-h"><h2>センサー面レイアウト (0次像と回折スペクトル)</h2>
+        <button class="btn sm" id="btnFit" title="1次スペクトルの長波長端まで表示範囲を広げる">スペクトル全体を表示</button>
+        <button class="btn sm local-only" id="btnPngStage">PNG 保存</button></div>
+      <div class="stage" id="stage"><div id="stageSvg"></div><div class="tip" id="stageTip" hidden></div></div>
+    </section>
+
+    <section class="card">
+      <div class="card-h"><h2>評価帯域の捕捉と画角内の占有</h2></div>
+      <div class="cov" id="cov"></div>
+    </section>
+
+    <section class="card">
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" data-tab="eff">ブレーズ効率</button>
+        <button class="tab" role="tab" data-tab="lines">輝線チェック表</button>
+        <button class="tab" role="tab" data-tab="report">数値レポート</button>
+        <button class="tab" role="tab" data-tab="cmp">構成比較</button>
+      </div>
+      <div class="panel" id="panel"></div>
+    </section>
+  </main>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script id="core">
+/* ===== 計算コア: meteor_spec_designer.py の純関数をそのまま移植 (DOM 非依存) ===== */
+const Core = (() => {
+  const ARCSEC_PER_RAD = 206264.806;
+  // (名称, 波長 nm, 種別グループ, 強度ランク 3/2/1, 既定でON)
+  const METEOR_LINES = [
+    ["Ca II K", 393.4, "Ca II", 3, true], ["Ca II H", 396.8, "Ca II", 3, true],
+    ["Ca I", 422.7, "Ca I", 2, true], ["Ca I", 558.9, "Ca I", 1, false], ["Ca I", 615.6, "Ca I", 1, false], ["Ca I", 643.9, "Ca I", 1, false],
+    ["Mn I", 403.1, "Mn I", 1, false],
+    ["Mg I", 383.8, "Mg I", 1, false], ["Mg I", 457.1, "Mg I", 1, false], ["Mg I b1", 516.7, "Mg I", 3, true], ["Mg I b2", 517.3, "Mg I", 3, true],
+    ["Mg I b4", 518.4, "Mg I", 3, true], ["Mg I", 552.8, "Mg I", 1, false],
+    ["Na I D2", 589.0, "Na I", 3, true], ["Na I D1", 589.6, "Na I", 3, true],
+    ["Cr I", 425.4, "Cr I", 1, false], ["Cr I", 427.5, "Cr I", 1, false], ["Cr I", 428.9, "Cr I", 1, false], ["Cr I", 469.8, "Cr I", 1, false], ["Cr I", 520.8, "Cr I", 1, false],
+    ["Si II", 570.6, "Si II", 1, false], ["Si II", 634.7, "Si II", 2, false], ["Si II", 637.1, "Si II", 2, false],
+    ["Fe I", 383.4, "Fe I", 1, false], ["Fe I", 404.6, "Fe I", 2, false], ["Fe I", 420.2, "Fe I", 1, false], ["Fe I", 427.2, "Fe I", 2, false],
+    ["Fe I", 429.4, "Fe I", 2, true], ["Fe I", 438.4, "Fe I", 3, true], ["Fe I", 440.5, "Fe I", 2, false], ["Fe I", 446.2, "Fe I", 2, false],
+    ["Fe I", 470.0, "Fe I", 1, false], ["Fe I", 488.6, "Fe I", 1, false], ["Fe I", 495.8, "Fe I", 1, false], ["Fe I", 503.5, "Fe I", 1, false],
+    ["Fe I", 511.6, "Fe I", 1, false], ["Fe I", 527.0, "Fe I", 2, false], ["Fe I", 532.8, "Fe I", 2, false], ["Fe I", 537.1, "Fe I", 1, false],
+    ["Fe I", 539.7, "Fe I", 1, false], ["Fe I", 561.6, "Fe I", 1, false], ["Fe I", 573.1, "Fe I", 1, false], ["Fe I", 581.6, "Fe I", 1, false],
+    ["Fe I", 595.9, "Fe I", 1, false], ["Fe I", 625.3, "Fe I", 1, false], ["Fe I", 631.8, "Fe I", 1, false], ["Fe I", 650.2, "Fe I", 1, false],
+    ["Fe I", 659.3, "Fe I", 1, false], ["Fe I", 666.3, "Fe I", 1, false], ["Fe I", 672.7, "Fe I", 1, false], ["Fe I", 743.1, "Fe I", 1, false],
+    ["Hα", 656.3, "H", 2, true],
+    ["N I", 745.1, "N I", 1, false], ["N I", 868.3, "N I", 1, true],
+    ["O I", 777.4, "O I", 3, true], ["O I", 844.6, "O I", 2, true],
+  ];
+  const GROUP_ORDER = ["Ca II", "Ca I", "Mg I", "Na I", "Fe I", "Cr I", "Si II", "Mn I", "H", "N I", "O I"];
+  // (名称, 短波長端 nm, 長波長端 nm, ラベルの段, ブラケットの段 0=上 1=下)
+  // N₂⁺ 第1負帯 (B–X) と N₂ 第1正帯 (B–A) は元ツールに無い追加分。他のバンドと波長が重なるため下段に描く。
+  const MOLECULAR_BANDS = [["OH (A-X)", 306.0, 320.0, 0, 0], ["AlO (B-X)", 465.0, 534.0, 0.5, 0], ["TiO γ'", 615.0, 630.0, 0, 0], ["TiO γ", 705.0, 720.0, 0.5, 0],
+    ["N₂⁺ 1N (0,0)", 385.0, 391.4, 0, 1], ["N₂⁺ 1N (0,1)", 421.0, 427.8, 0.5, 1],
+    ["N₂ 1PG Δv=+4", 570.0, 600.0, 0, 1], ["N₂ 1PG Δv=+3", 625.0, 688.0, 0.5, 1], ["N₂ 1PG Δv=+2", 705.0, 775.0, 0, 1], ["N₂ 1PG Δv=+1", 854.0, 891.0, 0.5, 1]];
+  const CUSTOM = "カスタム (手動入力)";
+  // 名称, [画素サイズ um, 横画素数, 縦画素数]
+  const SENSOR_PRESETS = [
+    ["ZWO ASI6200MM Pro (IMX455, フルサイズ)", [3.76, 9576, 6388]], ["ZWO ASI2600MM Pro (IMX571, APS-C)", [3.76, 6248, 4176]],
+    ["ZWO ASI1600MM (4/3)", [3.80, 4656, 3520]], ["ZWO ASI294MM Pro (IMX492, 4/3)", [4.63, 4144, 2822]],
+    ["ZWO ASI174MM (IMX174, 1/1.2\")", [5.86, 1936, 1216]], ["ZWO ASI290MM (IMX290, 1/2.8\")", [2.90, 1936, 1096]],
+    ["ZWO ASI585MM (IMX585, 1/1.2\")", [2.90, 3840, 2160]], ["Watec 902H2 Ultimate (1/2\" CCD)", [8.40, 752, 582]],
+    ["Sony α7S (フルサイズ)", [8.40, 4240, 2832]], [CUSTOM, null]];
+  // 名称, [焦点距離 mm, F値]
+  const LENS_PRESETS = [
+    ["広角 6 mm F1.2 (CCTV)", [6.0, 1.2]], ["広角 8 mm F1.4 (CCTV)", [8.0, 1.4]], ["12 mm F1.2", [12.0, 1.2]], ["16 mm F1.4", [16.0, 1.4]],
+    ["25 mm F1.4", [25.0, 1.4]], ["35 mm F1.4", [35.0, 1.4]], ["50 mm F1.2", [50.0, 1.2]], ["85 mm F1.4", [85.0, 1.4]],
+    ["135 mm F2.0", [135.0, 2.0]], [CUSTOM, null]];
+  // 名称, [溝本数 gr/mm, 設計(ブレーズ)波長 nm]
+  const GRATING_PRESETS = [
+    ["Edmund #46-067/068  70 本/mm (λd=632.8 nm)", [70.0, 632.8]], ["Edmund #46-069/070  80 本/mm (λd=632.8 nm)", [80.0, 632.8]],
+    ["Edmund #46-071/072  92 本/mm (λd=632.8 nm)", [92.0, 632.8]], ["Edmund #46-073/074 110 本/mm (λd=632.8 nm)", [110.0, 632.8]],
+    ["Edmund #49-583  300 本/mm 17.5° (50×50 mm)", [300.0, 560.0]], ["Edmund #49-584  600 本/mm 28.7° (50×50 mm)", [600.0, 520.0]],
+    ["Edmund #49-586 1200 本/mm 36.9° (50×50 mm)", [1200.0, 405.0]], ["Star Analyser SA-100 (100 本/mm)", [100.0, 550.0]],
+    ["Star Analyser SA-200 (200 本/mm)", [200.0, 550.0]], [CUSTOM, null]];
+
+  // 格子方程式 (透過型・入射角 α): sin θm = m g λ + sin α。伝搬しない場合は null。
+  function gratingAngle(m, g, lam, alpha = 0) {
+    const s = m * g * lam * 1.0e-6 + Math.sin(alpha);
+    if (Math.abs(s) >= 1.0) return null;
+    return Math.asin(s);
+  }
+  function cutoffWavelength(m, g, alpha = 0) {
+    if (m === 0) return null;
+    const lim = m > 0 ? 1.0 - Math.sin(alpha) : 1.0 + Math.sin(alpha);
+    return lim / (Math.abs(m) * g * 1.0e-6);
+  }
+  function sinc(x) { if (x === 0) return 1; const px = Math.PI * x; return Math.sin(px) / px; }
+  // スカラー近似のブレーズ効率 η_m(λ) = sinc²(m − λb/λ)
+  function blazeEff(m, lam, blaze) { return sinc(m - blaze / lam) ** 2; }
+  function rgb(lam) {
+    const w = lam;
+    if (w < 380 || w > 780) return [0.55, 0.55, 0.55];
+    let r, g, b;
+    if (w < 440) { r = -(w - 440) / 60.0; g = 0.0; b = 1.0; }
+    else if (w < 490) { r = 0.0; g = (w - 440) / 50.0; b = 1.0; }
+    else if (w < 510) { r = 0.0; g = 1.0; b = -(w - 510) / 20.0; }
+    else if (w < 580) { r = (w - 510) / 70.0; g = 1.0; b = 0.0; }
+    else if (w < 645) { r = 1.0; g = -(w - 645) / 65.0; b = 0.0; }
+    else { r = 1.0; g = 0.0; b = 0.0; }
+    let f = 1.0;
+    if (w < 420) f = 0.3 + 0.7 * (w - 380) / 40.0;
+    else if (w > 700) f = 0.3 + 0.7 * (780 - w) / 80.0;
+    return [r * f, g * f, b * f];
+  }
+  const deg = (x) => x * 180 / Math.PI;
+
+  function compute(params) {
+    const pix_um = params.pix_um, nx = params.nx, ny = params.ny, f = params.f_mm, fnum = params.fnum;
+    const g = params.g_per_mm, blaze = params.blaze_nm, lam1 = params.lam_min_nm, lam2 = params.lam_max_nm;
+    const x0_frac = params.x0_frac ?? 0.0;
+    const r = {};
+    // --- 基本光学量
+    const pix_mm = pix_um / 1000.0;
+    const w = nx * pix_mm, h = ny * pix_mm, d = Math.hypot(w, h);
+    r.sensor_w_mm = w; r.sensor_h_mm = h; r.sensor_d_mm = d;
+    const fov_h = 2.0 * Math.atan(w / (2.0 * f));
+    r.fov_h_deg = deg(fov_h);
+    r.fov_v_deg = deg(2.0 * Math.atan(h / (2.0 * f)));
+    r.fov_d_deg = deg(2.0 * Math.atan(d / (2.0 * f)));
+    r.fov_h_rad = fov_h;
+    r.scale_arcsec = ARCSEC_PER_RAD * pix_mm / f;
+    r.aperture_mm = f / fnum;
+    // --- 0次像 (視野角 α に対応)
+    const x0 = x0_frac * w / 2.0;
+    const alpha = Math.atan2(x0, f);
+    r.x0_mm = x0; r.alpha_deg = deg(alpha);
+    // --- 1次スペクトル
+    const lam_cut = cutoffWavelength(1, g, alpha);
+    const lam_hi = lam_cut ? Math.min(lam2, lam_cut) : lam2;
+    r.lam_cutoff_nm = lam_cut; r.lam_eff_max_nm = lam_hi;
+    const th1_lo = gratingAngle(1, g, lam1, alpha);
+    const th1_hi = gratingAngle(1, g, lam_hi, alpha);
+    r.theta1_min_deg = th1_lo !== null ? deg(th1_lo) : null;
+    r.theta1_max_deg = th1_hi !== null ? deg(th1_hi) : null;
+    if (th1_lo !== null && th1_hi !== null) {
+      const x1_lo = f * Math.tan(th1_lo), x1_hi = f * Math.tan(th1_hi);
+      r.x1_min_mm = x1_lo; r.x1_max_mm = x1_hi;
+      r.spec_len_mm = x1_hi - x1_lo; r.spec_len_px = (x1_hi - x1_lo) / pix_mm;
+      const span1 = th1_hi - th1_lo, span_full = th1_hi - alpha;
+      r.frac_spec_fov = span1 / fov_h; r.frac_full_fov = span_full / fov_h;
+      r.span_spec_deg = deg(span1); r.span_full_deg = deg(span_full);
+      // センサー右端で捉えられる最大波長
+      const th_edge = Math.atan2(w / 2.0, f);
+      const lam_edge = (Math.sin(th_edge) - Math.sin(alpha)) / (g * 1.0e-6);
+      r.lam_at_edge_nm = lam_edge;
+      r.fits_on_sensor = (x1_hi <= w / 2.0) && (x1_lo >= -w / 2.0);
+      const lam_lo_cap = Math.max(lam1, 0.0), lam_hi_cap = Math.min(lam_hi, lam_edge);
+      r.band_captured_frac = Math.max(0.0, lam_hi_cap - lam_lo_cap) / (lam2 - lam1);
+      r.lam_captured_lo = lam_lo_cap; r.lam_captured_hi = lam_hi_cap;
+    } else {
+      r.fits_on_sensor = false;
+      r.frac_spec_fov = r.frac_full_fov = null;
+      r.spec_len_mm = r.spec_len_px = null;
+      r.band_captured_frac = 0.0;
+    }
+    // --- 波長分散: dx/dλ = f g / cos³θ → nm/px
+    const disp = {};
+    for (const lam of [400, 500, 600, 700, 800]) {
+      const th = gratingAngle(1, g, lam, alpha);
+      disp[lam] = th === null ? null : pix_mm / (f * (g * 1.0e-6) / Math.cos(th) ** 3);
+    }
+    r.dispersion_nm_per_px = disp;
+    r.R_2px_550 = (disp[500] && disp[600]) ? 550.0 / (2.0 * ((disp[500] + disp[600]) / 2.0)) : null;
+    // --- 推奨 0次位置: 0次と 1次λmax がセンサー中心に対して対称になる x0 を走査で求める
+    let best = null;
+    for (let i = 0; i < 96; i++) {
+      const x0f = -0.95 + 0.95 * i / 95;
+      const a = Math.atan2(x0f * w / 2.0, f);
+      const t = gratingAngle(1, g, lam_hi, a);
+      if (t === null) continue;
+      const s = x0f * w / 2.0 + f * Math.tan(t);
+      if (best === null || Math.abs(s) < Math.abs(best[1])) best = [x0f, s];
+    }
+    r.recommend_x0_frac = best ? best[0] : null;
+    // --- ブレーズ効率 (代表値)
+    r.eff_1st_at_blaze = blazeEff(1, blaze, blaze); r.eff_0th_at_blaze = blazeEff(0, blaze, blaze);
+    const lam_c = 0.5 * (lam1 + lam2);
+    r.eff_1st_at_center = blazeEff(1, lam_c, blaze); r.eff_0th_at_center = blazeEff(0, lam_c, blaze);
+    return r;
+  }
+
+  function buildReport(p, r) {
+    const L = [], A = (s) => L.push(s);
+    const fmt = (v, nd = 2) => (v === null || v === undefined) ? "—" : v.toFixed(nd);
+    const sg = (v, nd = 2) => (v < 0 ? "−" : "+") + Math.abs(v).toFixed(nd);
+    A("=== 基本光学量 ===");
+    A(`センサー: ${r.sensor_w_mm.toFixed(2)} × ${r.sensor_h_mm.toFixed(2)} mm (${p.nx}×${p.ny}px, ${p.pix_um}µm)`);
+    A(`視野角  水平: ${r.fov_h_deg.toFixed(2)}°  垂直: ${r.fov_v_deg.toFixed(2)}°`);
+    A(`        対角: ${r.fov_d_deg.toFixed(2)}°`);
+    A(`画素スケール: ${r.scale_arcsec.toFixed(2)} 秒角/px (${(r.scale_arcsec / 60).toFixed(3)} 分角/px)`);
+    A(`有効口径: ${r.aperture_mm.toFixed(1)} mm (f=${p.f_mm}mm, F${p.fnum})`);
+    A("");
+    A("=== 1次スペクトル (対物グレーティング) ===");
+    A(`0次像位置: ${sg(r.x0_mm)} mm (視野角 ${sg(r.alpha_deg)}°)`);
+    if (r.lam_cutoff_nm) A(`伝搬限界波長: ${r.lam_cutoff_nm.toFixed(0)} nm` + (r.lam_cutoff_nm < p.lam_max_nm ? "  ← 上限をこれ以上は回折不可" : ""));
+    A(`回折角: ${fmt(r.theta1_min_deg)}° (λ${p.lam_min_nm.toFixed(0)}) 〜 ${fmt(r.theta1_max_deg)}° (λ${r.lam_eff_max_nm.toFixed(0)})`);
+    if (r.spec_len_mm !== null) {
+      A(`像位置: ${sg(r.x1_min_mm)} 〜 ${sg(r.x1_max_mm)} mm`);
+      A(`スペクトル長: ${r.spec_len_mm.toFixed(2)} mm = ${r.spec_len_px.toFixed(0)} px`);
+    }
+    A("");
+    A("=== 画角内の占有割合 ===");
+    if (r.frac_spec_fov !== null) {
+      A(`1次スペクトル角度スパン: ${r.span_spec_deg.toFixed(2)}° → 水平視野の ${(100 * r.frac_spec_fov).toFixed(1)} %`);
+      A(`0次〜1次(λmax)全体:     ${r.span_full_deg.toFixed(2)}° → 水平視野の ${(100 * r.frac_full_fov).toFixed(1)} %`);
+      A(`センサー右端で捉えられる最大波長: ${fmt(r.lam_at_edge_nm, 0)} nm`);
+      A(`評価帯域 (${p.lam_min_nm.toFixed(0)}–${p.lam_max_nm.toFixed(0)} nm) の捕捉率: ${(100 * r.band_captured_frac).toFixed(1)} %`);
+      A("収まり判定: " + (r.fits_on_sensor ? "○ 0次+1次ともセンサー内" : "× 1次の一部がセンサー外"));
+      if (r.recommend_x0_frac !== null) A(`推奨0次位置: 半幅の ${sg(r.recommend_x0_frac)} (スライダーで設定可)`);
+    } else {
+      A("1次光が伝搬できません (溝本数×波長が大きすぎます)");
+    }
+    A("");
+    A("=== 波長分散 (1次) ===");
+    for (const lam of [400, 500, 600, 700, 800]) {
+      const dl = r.dispersion_nm_per_px[lam];
+      A(`  ${lam} nm: ` + (dl ? `${dl.toFixed(3)} nm/px` : "伝搬不可"));
+    }
+    if (r.R_2px_550) A(`2px サンプリング分解能 R(550nm) ≈ ${r.R_2px_550.toFixed(0)}`);
+    A("");
+    A("=== ブレーズ効率 (sinc² 近似) ===");
+    A(`設計波長 ${p.blaze_nm.toFixed(0)} nm で 1次: ${(100 * r.eff_1st_at_blaze).toFixed(0)} %, 0次: ${(100 * r.eff_0th_at_blaze).toFixed(0)} %`);
+    const lam_c = 0.5 * (p.lam_min_nm + p.lam_max_nm);
+    A(`帯域中心 ${lam_c.toFixed(0)} nm で 1次: ${(100 * r.eff_1st_at_center).toFixed(0)} %, 0次: ${(100 * r.eff_0th_at_center).toFixed(0)} %`);
+    return L.join("\n");
+  }
+  return { METEOR_LINES, GROUP_ORDER, MOLECULAR_BANDS, CUSTOM, SENSOR_PRESETS, LENS_PRESETS, GRATING_PRESETS,
+    gratingAngle, cutoffWavelength, blazeEff, rgb, compute, buildReport };
+})();
+if (typeof module !== "undefined") module.exports = Core;
+</script>
+
+<script>
+(() => {
+"use strict";
+document.documentElement.lang = "ja";
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const { METEOR_LINES, GROUP_ORDER, MOLECULAR_BANDS, CUSTOM } = Core;
+const isLocal = location.protocol === "file:" || ["localhost", "127.0.0.1"].includes(location.hostname);
+const STORE = "meteor-spec-planner/v1";
+const FONT = '"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI",sans-serif';
+// 暗いセンサー面の上で読める種別色 (色相は元ツールの種別色に合わせた)
+const GROUP_COLORS = { "Ca II": "#4c9be8", "Ca I": "#2cc4d6", "Mn I": "#b98672", "Mg I": "#43c063", "Na I": "#ff9a2e", "Cr I": "#a98ae6",
+  "Si II": "#9aa3ad", "Fe I": "#ee5d5d", "H": "#f07fc8", "N I": "#c4c43a", "O I": "#1fb5a8" };
+const RANK = { 3: "■", 2: "●", 1: "・" };
+
+// key, 表示名, 単位, スライダー下限, 上限, 刻み, 整数, セクション  (範囲と刻みは元ツールと同じ)
+const PARAMS = [
+  ["pix_um", "画素サイズ", "µm", 1.0, 12.0, 0.01, false, "sensor"], ["nx", "横画素数", "px", 512, 12000, 1, true, "sensor"],
+  ["ny", "縦画素数", "px", 512, 9000, 1, true, "sensor"],
+  ["f_mm", "焦点距離", "mm", 2.0, 300.0, 0.5, false, "lens"], ["fnum", "F値", "", 0.8, 22.0, 0.1, false, "lens"],
+  ["g_per_mm", "溝本数", "本/mm", 10, 1200, 1, false, "grat"], ["blaze_nm", "設計(ブレーズ)波長", "nm", 300, 1000, 1, false, "grat"],
+  ["lam_min_nm", "評価波長 下限", "nm", 200, 900, 5, false, "grat"], ["lam_max_nm", "評価波長 上限", "nm", 400, 1200, 5, false, "grat"]];
+const DEFAULT_V = { pix_um: 4.63, nx: 4144, ny: 2822, f_mm: 50.0, fnum: 1.2, g_per_mm: 300.0, blaze_nm: 560.0, lam_min_nm: 300.0, lam_max_nm: 1000.0 };
+const defaults = () => ({ v: { ...DEFAULT_V }, x0: 0.0, lines: METEOR_LINES.map((e) => !!e[4]), bands: MOLECULAR_BANDS.map(() => true) });
+
+const state = { ...defaults(), fitAll: false, tab: "eff", scenarios: [], theme: null };
+try {
+  const s = JSON.parse(localStorage.getItem(STORE) || "null");
+  if (s && typeof s === "object") applyConfig(s, true);
+} catch (e) { /* 保存領域が使えなくても動作する */ }
+function save() {
+  try { localStorage.setItem(STORE, JSON.stringify({ v: state.v, x0: state.x0, lines: state.lines, bands: state.bands, fitAll: state.fitAll, tab: state.tab, scenarios: state.scenarios, theme: state.theme })); } catch (e) { /* noop */ }
+}
+function applyConfig(s, all) {
+  if (s.v) for (const k of Object.keys(DEFAULT_V)) if (typeof s.v[k] === "number" && isFinite(s.v[k])) state.v[k] = s.v[k];
+  if (typeof s.x0 === "number" && isFinite(s.x0)) state.x0 = Math.min(0.95, Math.max(-0.95, s.x0));
+  if (Array.isArray(s.lines) && s.lines.length === METEOR_LINES.length) state.lines = s.lines.map(Boolean);
+  if (Array.isArray(s.bands) && s.bands.length === MOLECULAR_BANDS.length) state.bands = s.bands.map(Boolean);
+  if (all) {
+    state.fitAll = !!s.fitAll;
+    if (["eff", "lines", "report", "cmp"].includes(s.tab)) state.tab = s.tab;
+    if (Array.isArray(s.scenarios)) state.scenarios = s.scenarios.filter((c) => c && c.p && typeof c.name === "string").slice(0, 30);
+    if (s.theme === "light" || s.theme === "dark") state.theme = s.theme;
+  }
+}
+
+let last = null, stageView = null, dragView = null, effView = null, dragging = false;
+
+/* ---------- 入力レールの構築 ---------- */
+for (const [key, label, unit, lo, hi, step, isInt, sec] of PARAMS) {
+  const d = document.createElement("div"); d.className = "prm";
+  d.innerHTML = `<label for="in-${key}">${label}${unit ? ` <i>[${unit}]</i>` : ""}</label>
+    <input type="number" id="in-${key}" step="${step}" inputmode="decimal">
+    <input type="range" id="rg-${key}" min="${lo}" max="${hi}" step="${step}" aria-label="${label}">`;
+  $("#prm-" + sec).appendChild(d);
+  $("#in-" + key).addEventListener("input", (e) => { const t = e.target.value.trim(); state.v[key] = t === "" ? NaN : Number(t); update(e.target); });
+  $("#rg-" + key).addEventListener("input", (e) => { let f = Number(e.target.value); state.v[key] = isInt ? Math.round(f) : Math.round(f / step) * step; update(e.target); });
+}
+$("#prm-sensor").style.cssText = $("#prm-lens").style.cssText = $("#prm-grat").style.cssText = "display:flex;flex-direction:column;gap:7px";
+function fillSelect(id, presets, keys) {
+  const sel = $(id);
+  sel.innerHTML = presets.map(([n]) => `<option value="${esc(n)}">${esc(n)}</option>`).join("");
+  sel.addEventListener("change", () => {
+    const hit = presets.find(([n]) => n === sel.value);
+    if (hit && hit[1]) keys.forEach((k, i) => { state.v[k] = hit[1][i]; });
+    update();
+  });
+}
+fillSelect("#selSensor", Core.SENSOR_PRESETS, ["pix_um", "nx", "ny"]);
+fillSelect("#selLens", Core.LENS_PRESETS, ["f_mm", "fnum"]);
+fillSelect("#selGrat", Core.GRATING_PRESETS, ["g_per_mm", "blaze_nm"]);
+const matchPreset = (presets, keys) => (presets.find(([, v]) => v && keys.every((k, i) => Math.abs(state.v[k] - v[i]) < 1e-9)) || [CUSTOM])[0];
+
+// 輝線チップ
+(() => {
+  const by = {};
+  METEOR_LINES.forEach((e, i) => { (by[e[2]] = by[e[2]] || []).push(i); });
+  const ordered = GROUP_ORDER.filter((g) => by[g]).concat(Object.keys(by).filter((g) => !GROUP_ORDER.includes(g)));
+  let h = "";
+  for (const g of ordered) {
+    h += `<div class="grp"><button class="grp-h" data-grp="${esc(g)}" title="種別ごと切替"><span class="sw" style="background:${GROUP_COLORS[g] || "#888"}"></span>${esc(g)} <small data-cnt="${esc(g)}"></small><em>種別ごと切替</em></button><div class="chips">`;
+    for (const i of by[g]) { const [name, lam, , rank] = METEOR_LINES[i]; h += `<label class="chip" title="${esc(name)} ${lam.toFixed(1)} nm"><input type="checkbox" data-line="${i}">${RANK[rank]} ${lam.toFixed(1)}${/ [A-Za-z]\d?$/.test(name) && name.split(" ").length > 2 ? " " + esc(name.split(" ").pop()) : ""}</label>`; }
+    h += `</div></div>`;
+  }
+  h += `<div class="grp"><div class="grp-h" style="cursor:default"><span class="sw" style="background:var(--band)"></span>分子バンド (OH/AlO/TiO/N₂/N₂⁺)</div><div class="chips">`;
+  MOLECULAR_BANDS.forEach(([name, la, lb], j) => { h += `<label class="chip"><input type="checkbox" data-band="${j}">${esc(name)} ${la.toFixed(0)}–${lb.toFixed(0)}</label>`; });
+  h += `</div></div>`;
+  const box = $("#lineGroups"); box.innerHTML = h;
+  box.addEventListener("change", (e) => {
+    const t = e.target;
+    if (t.dataset.line !== undefined) state.lines[+t.dataset.line] = t.checked;
+    if (t.dataset.band !== undefined) state.bands[+t.dataset.band] = t.checked;
+    update();
+  });
+  box.addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-grp]"); if (!b) return;
+    const idx = by[b.dataset.grp], allOn = idx.every((k) => state.lines[k]);   // 全ONなら全OFF、そうでなければ全ON
+    idx.forEach((k) => { state.lines[k] = !allOn; }); update();
+  });
+  window.__groups = by;
+})();
+document.querySelectorAll("[data-set]").forEach((b) => b.addEventListener("click", () => {
+  const m = b.dataset.set;
+  if (m === "all" || m === "none") { state.lines.fill(m === "all"); state.bands.fill(m === "all"); }
+  else if (m === "strong") { state.lines = METEOR_LINES.map((e) => e[3] >= 3); state.bands.fill(false); }
+  else { state.lines = METEOR_LINES.map((e) => !!e[4]); state.bands.fill(true); }
+  update();
+}));
+$("#rgX0").addEventListener("input", (e) => { state.x0 = Number(e.target.value); update(e.target); });
+$("#btnRec").addEventListener("click", applyRecommended);
+function applyRecommended() { if (last && last.r.recommend_x0_frac !== null) { state.x0 = last.r.recommend_x0_frac; update(); } }
+
+/* ---------- 計算と描画 ---------- */
+function readParams() {
+  const v = state.v;
+  if (!Object.keys(DEFAULT_V).every((k) => Number.isFinite(v[k]))) return null;
+  const p = { ...v, nx: Math.trunc(v.nx), ny: Math.trunc(v.ny), x0_frac: state.x0 };
+  if (p.pix_um <= 0 || p.nx <= 0 || p.ny <= 0 || p.f_mm <= 0 || p.fnum <= 0 || p.g_per_mm <= 0 || p.lam_min_nm >= p.lam_max_nm) return null;
+  return p;
+}
+const fmtNum = (x) => String(Math.round(x * 1e6) / 1e6);
+const sg = (v, nd = 2) => (v < 0 ? "−" : "+") + Math.abs(v).toFixed(nd);
+
+function syncRail(src) {
+  for (const [key, , , lo, hi] of PARAMS) {
+    const inp = $("#in-" + key), rg = $("#rg-" + key), val = state.v[key];
+    if (inp !== src && document.activeElement !== inp) inp.value = Number.isFinite(val) ? fmtNum(val) : "";
+    inp.classList.toggle("bad", !Number.isFinite(val) || val <= 0);
+    if (rg !== src && Number.isFinite(val)) rg.value = Math.min(Math.max(val, lo), hi);
+  }
+  const bad = !(state.v.lam_min_nm < state.v.lam_max_nm);
+  $("#in-lam_min_nm").classList.toggle("bad", bad || !Number.isFinite(state.v.lam_min_nm));
+  $("#in-lam_max_nm").classList.toggle("bad", bad || !Number.isFinite(state.v.lam_max_nm));
+  $("#selSensor").value = matchPreset(Core.SENSOR_PRESETS, ["pix_um", "nx", "ny"]);
+  $("#selLens").value = matchPreset(Core.LENS_PRESETS, ["f_mm", "fnum"]);
+  $("#selGrat").value = matchPreset(Core.GRATING_PRESETS, ["g_per_mm", "blaze_nm"]);
+  if ($("#rgX0") !== src) $("#rgX0").value = state.x0;
+  $("#x0Val").textContent = sg(state.x0);
+  $("#sumX0").textContent = state.x0 === 0 ? "中心" : sg(state.x0);
+  document.querySelectorAll("[data-line]").forEach((c) => { c.checked = state.lines[+c.dataset.line]; });
+  document.querySelectorAll("[data-band]").forEach((c) => { c.checked = state.bands[+c.dataset.band]; });
+  for (const [g, idx] of Object.entries(window.__groups)) $(`[data-cnt="${CSS.escape(g)}"]`).textContent = `${idx.filter((k) => state.lines[k]).length}/${idx.length}`;
+  const on = state.lines.filter(Boolean).length + state.bands.filter(Boolean).length;
+  $("#sumLines").textContent = `表示 ${on} / 全 ${METEOR_LINES.length + MOLECULAR_BANDS.length} 件`;
+  $("#btnFit").classList.toggle("on", state.fitAll);
+}
+
+function update(src) {
+  syncRail(src);
+  const p = readParams();
+  $("#work").classList.toggle("stale", !p);
+  if (!p) {
+    $("#verdict").innerHTML = `<span class="pill crit">× 入力値が不正です</span><p>数値欄に数字以外が入っていないか、評価波長の下限が上限以上になっていないかを確認してください。</p>`;
+    return;
+  }
+  const r = Core.compute(p);
+  last = { p, r };
+  $("#sumSensor").textContent = `${r.sensor_w_mm.toFixed(1)} × ${r.sensor_h_mm.toFixed(1)} mm`;
+  $("#sumLens").textContent = `口径 ${r.aperture_mm.toFixed(1)} mm`;
+  $("#sumGrat").textContent = `${fmtNum(p.g_per_mm)} 本/mm`;
+  renderVerdict(); renderKpis(); renderStage(); renderCov(); renderTab(); save();
+}
+
+function renderVerdict() {
+  const { p, r } = last; let h;
+  if (r.frac_spec_fov === null) {
+    h = `<span class="pill crit">× 1次光が伝搬できません</span><p>溝本数×波長が大きすぎます。${r.lam_cutoff_nm && r.lam_cutoff_nm <= p.lam_max_nm ? `評価波長の上限 (${p.lam_max_nm.toFixed(0)} nm) が伝搬限界 (${r.lam_cutoff_nm.toFixed(0)} nm) に届いています。上限を伝搬限界より下げるか、` : "評価波長の上限を下げるか、"}溝本数の少ないグレーティングを選んでください。</p>`;
+  } else if (r.fits_on_sensor) {
+    h = `<span class="pill good">○ 0次+1次ともセンサー内</span><p>評価帯域 ${p.lam_min_nm.toFixed(0)}–${r.lam_eff_max_nm.toFixed(0)} nm の1次スペクトルがすべてセンサーに載ります。</p>`;
+  } else {
+    const rec = r.recommend_x0_frac;
+    h = `<span class="pill warn">× 1次の一部がセンサー外</span><p>センサー右端は ${r.lam_at_edge_nm.toFixed(0)} nm。それより長波長側は写りません。</p>`
+      + (rec !== null && Math.abs(rec - p.x0_frac) > 0.005 ? `<button class="btn sm" id="vRec">推奨位置 ${sg(rec)} に設定</button>` : "");
+  }
+  if (r.lam_cutoff_nm && r.lam_cutoff_nm < p.lam_max_nm) h += `<span class="pill mute">伝搬限界 ${r.lam_cutoff_nm.toFixed(0)} nm</span>`;
+  $("#verdict").innerHTML = h;
+  const b = $("#vRec"); if (b) b.addEventListener("click", applyRecommended);
+}
+
+function renderKpis() {
+  const { p, r } = last, d = r.dispersion_nm_per_px, lamC = 0.5 * (p.lam_min_nm + p.lam_max_nm);
+  const k = (t, v, u, s) => `<div class="kpi"><dt>${t}</dt><dd><div class="v">${v}${u ? `<u>${u}</u>` : ""}</div><div class="s">${s}</div></dd></div>`;
+  $("#kpis").innerHTML =
+    k("視野角 (水平 × 垂直)", `${r.fov_h_deg.toFixed(1)}° × ${r.fov_v_deg.toFixed(1)}°`, "", `対角 ${r.fov_d_deg.toFixed(1)}°`)
+    + k("画素スケール", r.scale_arcsec.toFixed(1), "秒角/px", `${(r.scale_arcsec / 60).toFixed(3)} 分角/px`)
+    + k("1次スペクトル長", r.spec_len_px === null ? "—" : r.spec_len_px.toFixed(0), "px", r.spec_len_mm === null ? "伝搬不可" : `${r.spec_len_mm.toFixed(2)} mm`)
+    + k("波長分散 (500 nm)", d[500] ? d[500].toFixed(3) : "—", "nm/px", r.R_2px_550 ? `R(550 nm) ≈ ${r.R_2px_550.toFixed(0)} (2 px)` : "R 算出不可")
+    + k("評価帯域の捕捉率", (100 * r.band_captured_frac).toFixed(1), "%", r.frac_spec_fov === null ? "—" : `${r.lam_captured_lo.toFixed(0)}–${Math.max(r.lam_captured_lo, r.lam_captured_hi).toFixed(0)} nm`)
+    + k(`1次効率 (帯域中心 ${lamC.toFixed(0)} nm)`, (100 * r.eff_1st_at_center).toFixed(0), "%", `0次 ${(100 * r.eff_0th_at_center).toFixed(0)} % · sinc² 近似`);
+}
+
+const niceStep = (range, target) => { const raw = range / target, e = Math.pow(10, Math.floor(Math.log10(raw))), n = raw / e; return (n < 1.5 ? 1 : n < 3.5 ? 2 : n < 7.5 ? 5 : 10) * e; };
+const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const rgbCss = (lam, k = 1) => { const c = Core.rgb(lam); return `rgb(${c.map((x) => Math.round(255 * Math.min(1, x * k))).join(",")})`; };
+
+function renderStage() {
+  const { p, r } = last, host = $("#stage");
+  const W = Math.max(300, host.clientWidth);
+  const w = r.sensor_w_mm, h = r.sensor_h_mm, f = p.f_mm, g = p.g_per_mm, alpha = r.alpha_deg * Math.PI / 180, bh = 0.10 * h;
+  let V = dragView;
+  if (!V) {
+    let xlo = -w / 2 * 1.12 - 1, xhi = w / 2 * 1.12 + 1, ylo = -h / 2 * 1.12, yhi = h / 2 * 1.12;
+    if (state.fitAll && r.spec_len_mm !== null) xhi = Math.min(Math.max(xhi, r.x1_max_mm + 0.06 * w + 1), w * 4);
+    const L = 44, R = 12, T = 38, B = 36, PW = W - L - R, minH = W < 560 ? 230 : 280, maxH = 430;
+    let s = PW / (xhi - xlo), PH = (yhi - ylo) * s;
+    if (PH < minH) { const half = minH / s / 2; ylo = -half; yhi = half; PH = minH; }
+    else if (PH > maxH) { s = maxH / (yhi - ylo); const extra = (PW / s - (xhi - xlo)) / 2; xlo -= extra; xhi += extra; PH = maxH; }
+    V = { xlo, xhi, ylo, yhi, s, L, R, T, B, PW, PH, W, H: T + PH + B };
+  }
+  stageView = V;
+  const { xlo, xhi, ylo, yhi, s, L, T, PW, PH, H } = V;
+  const X = (x) => L + (x - xlo) * s, Y = (y) => T + (yhi - y) * s, n1 = (x) => x.toFixed(1);
+  const C = { stage: "#0d111a", sensor: "#04060a", fg: "#e3e8f0", mu: "#8c96a8", ln: "#2b3447", band: "#b48cf2" };
+  const defs = [], out = [];
+  defs.push(`<clipPath id="cpPlot"><rect x="${L}" y="${T}" width="${PW}" height="${PH}"/></clipPath>`);
+  defs.push(`<clipPath id="cpSens"><rect x="${n1(X(-w / 2))}" y="${n1(Y(h / 2))}" width="${n1(w * s)}" height="${n1(h * s)}"/></clipPath>`);
+  out.push(`<rect x="0" y="0" width="${V.W}" height="${H}" fill="${C.stage}"/>`);
+  // 目盛り
+  const xs = niceStep(xhi - xlo, W < 560 ? 5 : 9), ys = niceStep(yhi - ylo, 5);
+  let grid = "", ax = "";
+  for (let x = Math.ceil(xlo / xs) * xs; x <= xhi + 1e-9; x += xs) {
+    grid += `<line x1="${n1(X(x))}" x2="${n1(X(x))}" y1="${T}" y2="${T + PH}" stroke="${C.ln}" stroke-width="1" opacity=".55"/>`;
+    ax += `<text x="${n1(X(x))}" y="${T + PH + 15}" text-anchor="middle">${fmtNum(Math.round(x / xs) * xs)}</text>`;
+  }
+  for (let y = Math.ceil(ylo / ys) * ys; y <= yhi + 1e-9; y += ys) {
+    grid += `<line x1="${L}" x2="${L + PW}" y1="${n1(Y(y))}" y2="${n1(Y(y))}" stroke="${C.ln}" stroke-width="1" opacity=".55"/>`;
+    ax += `<text x="${L - 6}" y="${n1(Y(y) + 3.5)}" text-anchor="end">${fmtNum(Math.round(y / ys) * ys)}</text>`;
+  }
+  const tlo = Math.atan(xlo / f) * 180 / Math.PI, thi = Math.atan(xhi / f) * 180 / Math.PI, ts = niceStep(thi - tlo, W < 560 ? 5 : 9);
+  for (let t = Math.ceil(tlo / ts) * ts; t <= thi + 1e-9; t += ts) {
+    const x = X(f * Math.tan(t * Math.PI / 180));
+    ax += `<line x1="${n1(x)}" x2="${n1(x)}" y1="${T - 4}" y2="${T}" stroke="${C.mu}" stroke-width="1"/><text x="${n1(x)}" y="${T - 8}" text-anchor="middle">${fmtNum(Math.round(t / ts) * ts)}°</text>`;
+  }
+  ax += `<text x="${L}" y="${T - 24}" text-anchor="start">画角 [°]</text><text x="${L + PW}" y="${T + PH + 30}" text-anchor="end">センサー水平位置 [mm]</text>`;
+  ax += `<text x="12" y="${T + PH / 2}" text-anchor="middle" transform="rotate(-90 12 ${T + PH / 2})">垂直位置 [mm]</text>`;
+  out.push(`<g clip-path="url(#cpPlot)">${grid}</g>`);
+  out.push(`<rect x="${n1(X(-w / 2))}" y="${n1(Y(h / 2))}" width="${n1(w * s)}" height="${n1(h * s)}" fill="${C.sensor}" stroke="${C.fg}" stroke-width="1.5"/>`);
+  out.push(`<text x="${n1(X(-w / 2) + 8)}" y="${n1(Y(h / 2) + 16)}" fill="${C.mu}" font-size="10.5">センサー ${w.toFixed(1)} × ${h.toFixed(1)} mm · ${p.nx} × ${p.ny} px</text>`);
+
+  // 回折次数のバンド
+  const tw = (t) => [...t].reduce((a, ch) => a + (ch.charCodeAt(0) > 255 ? 10.5 : 6.2), 0);
+  function order(m, yc, faint, label, side) {
+    const px = [], col = [], N = 200;
+    for (let i = 0; i < N; i++) {
+      const lam = p.lam_min_nm + (p.lam_max_nm - p.lam_min_nm) * i / (N - 1);
+      const th = Core.gratingAngle(m, g, lam, alpha);
+      if (th === null || Math.abs(th * 180 / Math.PI) > 80) continue;
+      px.push(X(f * Math.tan(th))); col.push(rgbCss(lam));
+    }
+    if (px.length < 2) return;
+    const a = px[0], b = px[px.length - 1], id = "gr" + (m < 0 ? "n" : "p") + Math.abs(m);
+    defs.push(`<linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="${n1(a)}" x2="${n1(b)}" y1="0" y2="0">`
+      + px.map((x, i) => `<stop offset="${((x - a) / (b - a)).toFixed(4)}" stop-color="${col[i]}"/>`).join("") + `</linearGradient>`);
+    const x1 = Math.min(a, b), x2 = Math.max(a, b), y = Y(yc + bh / 2), hh = bh * s;
+    const rect = `<rect x="${n1(x1)}" y="${n1(y)}" width="${n1(x2 - x1)}" height="${n1(hh)}" fill="url(#${id})"/>`;
+    out.push(`<g clip-path="url(#cpPlot)" opacity="${faint ? 0.14 : 0.3}">${rect}</g><g clip-path="url(#cpSens)" opacity="${faint ? 0.42 : 1}">${rect}</g>`);
+    const lw = tw(label), ty = Y(yc) + 4;
+    let tx, anc;
+    if (side === "right") { if (x2 + 8 + lw < L + PW) { tx = x2 + 8; anc = "start"; } else { tx = L + PW - 6; anc = "end"; } }
+    else { if (x1 - 8 - lw > L) { tx = x1 - 8; anc = "end"; } else { tx = Math.max(x1, L) + 6; anc = "start"; } }
+    out.push(`<text x="${n1(tx)}" y="${n1(ty)}" text-anchor="${anc}" fill="${C.fg}" font-size="11.5" font-weight="600" stroke="${C.sensor}" stroke-width="3" paint-order="stroke">${label}</text>`);
+  }
+  order(1, 0.0, false, "1次光", "right");
+  order(-1, 0.0, true, "−1次光", "left");
+  order(2, -0.36 * h, true, "2次光", "left");
+
+  // 輝線 (ラベルは重ならない段へ自動で振り分け)
+  const vis = [];
+  METEOR_LINES.forEach(([name, lam, grp], i) => {
+    if (!state.lines[i] || lam < p.lam_min_nm || lam > p.lam_max_nm) return;
+    const th = Core.gratingAngle(1, g, lam, alpha); if (th === null) return;
+    const x = f * Math.tan(th); if (Math.abs(x) > w / 2 * 1.35) return;
+    if (X(x) < L || X(x) > L + PW) return;
+    vis.push({ x, name, lam, grp });
+  });
+  vis.sort((a, b) => a.x - b.x);
+  const yTop = Y(0.9 * bh), TH = 25, maxT = Math.max(1, Math.min(6, Math.floor((yTop - T - 22) / TH))), right = [];
+  let lines = "";
+  for (const v of vis) {
+    const cx = X(v.x), lw = Math.max(tw(v.name) * 0.95, 24) + 8, left = cx - lw / 2;
+    let t = -1;
+    for (let k = 0; k < maxT; k++) if ((right[k] ?? -1e9) <= left) { t = k; right[k] = left + lw; break; }
+    const c = GROUP_COLORS[v.grp] || "#ccc", y2 = t < 0 ? yTop : yTop - 4 - t * TH;
+    lines += `<g><title>${esc(v.name)} ${v.lam.toFixed(1)} nm</title><line x1="${n1(cx)}" x2="${n1(cx)}" y1="${n1(Y(-0.9 * bh))}" y2="${n1(y2)}" stroke="${c}" stroke-width="1.1"/>`;
+    if (t >= 0) lines += `<rect x="${n1(cx - 2.5)}" y="${n1(y2 - 2.5)}" width="5" height="5" fill="${c}"/><text x="${n1(cx)}" y="${n1(y2 - 15)}" text-anchor="middle" fill="${C.fg}" font-size="10">${esc(v.name)}</text><text x="${n1(cx)}" y="${n1(y2 - 5)}" text-anchor="middle" fill="${C.mu}" font-size="9.5">${v.lam.toFixed(0)}</text>`;
+    lines += `</g>`;
+  }
+  out.push(`<g clip-path="url(#cpPlot)">${lines}</g>`);
+
+  // 分子バンド (ブラケット)
+  let bands = "";
+  MOLECULAR_BANDS.forEach(([name, la0, lb0, row, lvl], i) => {
+    if (!state.bands[i]) return;
+    const yb = -bh * (1.15 + 1.1 * lvl);
+    const la = Math.max(la0, p.lam_min_nm), lb = Math.min(lb0, p.lam_max_nm); if (la >= lb) return;
+    const ta = Core.gratingAngle(1, g, la, alpha), tb = Core.gratingAngle(1, g, lb, alpha); if (ta === null || tb === null) return;
+    const xa = f * Math.tan(ta), xb = f * Math.tan(tb); if (xa > w / 2 * 1.35 || xb < -w / 2 * 1.35) return;
+    const e = bh * 0.18 * s;
+    bands += `<g><title>${esc(name)} ${la0.toFixed(0)}–${lb0.toFixed(0)} nm</title><path d="M${n1(X(xa))} ${n1(Y(yb) - e)}V${n1(Y(yb) + e)}M${n1(X(xa))} ${n1(Y(yb))}H${n1(X(xb))}M${n1(X(xb))} ${n1(Y(yb) - e)}V${n1(Y(yb) + e)}" stroke="${C.band}" stroke-width="2" fill="none"/>`
+      + `<text x="${n1(X((xa + xb) / 2))}" y="${n1(Y(yb - bh * (0.30 + (lvl ? 0.45 : 0.65) * row)) + 9)}" text-anchor="middle" fill="${C.band}" font-size="10.5">${esc(name.split(" ")[0])}</text></g>`;
+  });
+  out.push(`<g clip-path="url(#cpPlot)">${bands}</g>`);
+
+  // 0次像 (ドラッグ可能)
+  const sx = X(r.x0_mm), sy = Y(0);
+  let star = ""; for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? 4.2 : 10; star += `${n1(sx + rr * Math.cos(a))},${n1(sy + rr * Math.sin(a))} `; }
+  out.push(`<line x1="${n1(sx)}" x2="${n1(sx)}" y1="${n1(Y(h / 2))}" y2="${n1(Y(-h / 2))}" stroke="${C.mu}" stroke-width="1" stroke-dasharray="2 4" opacity=".7"/>`);
+  out.push(`<polygon points="${star}" fill="#ffffff" stroke="${C.sensor}" stroke-width="1"/>`);
+  out.push(`<text x="${n1(sx)}" y="${n1(sy + 26)}" text-anchor="middle" fill="${C.fg}" font-size="10.5" stroke="${C.sensor}" stroke-width="3" paint-order="stroke">0次 (流星像)</text>`);
+  out.push(`<line id="xh" x1="0" x2="0" y1="${T}" y2="${T + PH}" stroke="${C.fg}" stroke-width="1" opacity=".6" visibility="hidden"/>`);
+  out.push(`<circle data-drag="x0" cx="${n1(sx)}" cy="${n1(sy)}" r="20" fill="#ffffff" fill-opacity="0.001" style="cursor:ew-resize;touch-action:none"><title>ドラッグで0次像の位置を変更</title></circle>`);
+
+  $("#stageSvg").innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="${V.W}" height="${H}" viewBox="0 0 ${V.W} ${H}" font-family='${FONT}' role="img" aria-label="センサー面上の0次像と回折スペクトルの配置図"><defs>${defs.join("")}</defs>${out[0]}<g fill="${C.mu}" font-size="10.5">${ax}</g>${out.slice(1).join("")}</svg>`;
+}
+
+// センサー面のポインタ操作: ★のドラッグとカーソル位置の読み取り
+(() => {
+  const host = $("#stage"), tip = $("#stageTip");
+  const toMm = (e) => { const b = host.getBoundingClientRect(), V = stageView; return { px: e.clientX - b.left, py: e.clientY - b.top, x: V.xlo + (e.clientX - b.left - V.L) / V.s }; };
+  host.addEventListener("pointerdown", (e) => {
+    if (!last || !e.target.closest('[data-drag="x0"]')) return;
+    dragging = true; dragView = stageView; host.setPointerCapture(e.pointerId); tip.hidden = true; e.preventDefault();
+  });
+  host.addEventListener("pointermove", (e) => {
+    if (!last || !stageView) return;
+    const { p, r } = last, V = stageView, m = toMm(e);
+    if (dragging) { state.x0 = Math.round(Math.min(0.95, Math.max(-0.95, m.x / (r.sensor_w_mm / 2))) * 100) / 100; update(); return; }
+    const xh = $("#xh");
+    if (m.px < V.L || m.px > V.L + V.PW || m.py < V.T || m.py > V.T + V.PH) { tip.hidden = true; if (xh) xh.setAttribute("visibility", "hidden"); return; }
+    if (xh) { xh.setAttribute("x1", m.px); xh.setAttribute("x2", m.px); xh.setAttribute("visibility", "visible"); }
+    const pix = p.pix_um / 1000, w = r.sensor_w_mm, th = Math.atan(m.x / p.f_mm), alpha = r.alpha_deg * Math.PI / 180;
+    const lam = (Math.sin(th) - Math.sin(alpha)) / (p.g_per_mm * 1e-6), on = Math.abs(m.x) <= w / 2;
+    let h = `<b>x ${sg(m.x)} mm</b> <i>${on ? `画素列 ${Math.round((m.x + w / 2) / pix)}` : "センサー外"} · 画角 ${sg(th * 180 / Math.PI, 1)}°</i>`;
+    if (lam > 0) {
+      const inBand = lam >= p.lam_min_nm && lam <= p.lam_max_nm;
+      h += `<br><span class="k" style="background:${rgbCss(lam)}"></span>1次 <b>${lam.toFixed(1)} nm</b>${inBand ? "" : " <i>(評価範囲外)</i>"} <i>· ${(pix / (p.f_mm * p.g_per_mm * 1e-6 / Math.cos(th) ** 3)).toFixed(3)} nm/px</i>`;
+      h += `<br><span class="k" style="background:${rgbCss(lam / 2)}"></span>同じ位置の2次 <b>${(lam / 2).toFixed(1)} nm</b>`;
+    } else h += `<br><i>0次像より左 (−1次側)</i>`;
+    tip.innerHTML = h; tip.hidden = false;
+    const tw = tip.offsetWidth; tip.style.left = Math.max(4, Math.min(m.px + 14, V.W - tw - 4)) + "px"; tip.style.top = (V.T + 6) + "px";
+  });
+  const end = () => { if (dragging) { dragging = false; dragView = null; update(); } };
+  host.addEventListener("pointerup", end); host.addEventListener("pointercancel", end);
+  host.addEventListener("pointerleave", () => { tip.hidden = true; const xh = $("#xh"); if (xh) xh.setAttribute("visibility", "hidden"); });
+})();
+
+function renderCov() {
+  const { p, r } = last, l1 = p.lam_min_nm, l2 = p.lam_max_nm, pos = (l) => (100 * Math.min(1, Math.max(0, (l - l1) / (l2 - l1)))).toFixed(2);
+  const stops = []; for (let i = 0; i <= 40; i++) { const l = l1 + (l2 - l1) * i / 40; stops.push(`${rgbCss(l)} ${(i * 2.5).toFixed(1)}%`); }
+  const ok = r.frac_spec_fov !== null, hi = ok ? Math.max(r.lam_captured_lo, r.lam_captured_hi) : l1, lam2nd = 2 * l1;
+  let bar = `<div style="left:0;right:0;background:linear-gradient(90deg,${stops.join(",")})"></div><div class="cov-out" style="left:${pos(hi)}%;right:0"></div>`;
+  const notes = [];
+  if (ok) notes.push(`<li>センサーに写る範囲 <b>${r.lam_captured_lo.toFixed(0)}–${hi.toFixed(0)} nm</b> (評価帯域の ${(100 * r.band_captured_frac).toFixed(1)} %)</li>`);
+  else notes.push(`<li>評価帯域の端で1次光が伝搬しないため、写る範囲を算出できません。</li>`);
+  if (ok && hi < l2 - 1e-6) { bar += `<div class="cov-mark" style="left:${pos(hi)}%"></div>`;
+    notes.push(`<li>斜線部 <b>${hi.toFixed(0)}–${l2.toFixed(0)} nm</b> は${r.lam_cutoff_nm < l2 && hi >= r.lam_cutoff_nm - 1e-6 ? "回折光が伝搬しません" : "センサー右端の外"}</li>`); }
+  if (ok) notes.push(`<li>センサー右端に結像する波長 <b>${r.lam_at_edge_nm.toFixed(0)} nm</b></li>`);
+  if (r.lam_cutoff_nm && r.lam_cutoff_nm < l2) notes.push(`<li>1次光の伝搬限界 <b>${r.lam_cutoff_nm.toFixed(0)} nm</b></li>`);
+  if (lam2nd < l2) notes.push(`<li>2次光の重なり: 1次の <b>${lam2nd.toFixed(0)} nm</b> より長波長側に、${l1.toFixed(0)} nm 以降の2次光が同じ位置に重なります</li>`);
+  const meter = (label, frac, degv) => frac === null ? "" :
+    `<div class="meter${frac > 1 ? " over" : ""}"><div class="meter-h"><span>${label}</span><b class="num">${(100 * frac).toFixed(1)} % <span style="font-weight:400;color:var(--muted)">(${degv.toFixed(2)}°)</span></b></div><div class="meter-t"><div style="width:${Math.min(100, Math.max(0, 100 * frac)).toFixed(1)}%"></div></div></div>`;
+  $("#cov").innerHTML = `<div><h3>評価帯域 ${l1.toFixed(0)}–${l2.toFixed(0)} nm のうちセンサーに写る範囲</h3><div class="cov-bar">${bar}</div>
+    <div class="cov-ends"><span>${l1.toFixed(0)} nm</span><span>${l2.toFixed(0)} nm</span></div><ul class="cov-notes">${notes.join("")}</ul></div>
+    <div><h3>水平視野 ${r.fov_h_deg.toFixed(2)}° に占める角度スパン</h3>${ok ? meter("1次スペクトルのみ", r.frac_spec_fov, r.span_spec_deg) + meter("0次〜1次 (λmax) 全体", r.frac_full_fov, r.span_full_deg)
+      + (r.frac_full_fov > 1 ? `<p class="hint">全体が 100 % を超えるため、0次と1次全体を同一視野には収められません。溝本数の少ないグレーティングか、より短焦点のレンズを検討してください。</p>` : "")
+      : `<p class="hint">評価帯域の端で1次光が伝搬しないため算出できません。</p>`}</div>`;
+}
+
+/* ---------- タブ ---------- */
+document.querySelectorAll(".tab").forEach((b) => b.addEventListener("click", () => { state.tab = b.dataset.tab; renderTab(); save(); }));
+function renderTab() {
+  document.querySelectorAll(".tab").forEach((b) => b.setAttribute("aria-selected", b.dataset.tab === state.tab));
+  ({ eff: tabEff, lines: tabLines, report: tabReport, cmp: tabCmp })[state.tab]();
+}
+
+function tabEff() {
+  const panel = $("#panel");
+  if (!$("#eff")) {
+    panel.innerHTML = `<div class="legend"><span><i style="border-color:var(--s1)"></i>1次 (m=1)</span><span><i style="border-color:var(--s0)"></i>0次 (m=0)</span>
+      <span><i class="dash" style="border-color:var(--s2)"></i>2次 (m=2)</span><span><i class="dot"></i>ブレーズ波長</span><span>│ 選択中の輝線</span><span><i class="blk"></i>分子バンド</span>
+      <button class="btn sm local-only" id="btnPngEff" style="margin-left:auto">PNG 保存</button></div>
+      <div class="chart" id="eff"><div id="effSvg"></div><div class="tip" id="effTip" hidden></div></div>
+      <p class="hint" style="margin-top:6px">sinc² のスカラー近似による相対効率です。絶対効率はメーカー公表の効率曲線で確認してください。</p>`;
+    gateLocal();
+    const b = $("#btnPngEff"); if (b) b.addEventListener("click", () => savePng($("#effSvg svg"), "meteor_spec_efficiency.png"));
+    const host = $("#eff"), tip = $("#effTip");
+    host.addEventListener("pointermove", (e) => {
+      if (!effView || !last) return;
+      const V = effView, bx = host.getBoundingClientRect(), px = e.clientX - bx.left, g = $("#exh");
+      if (px < V.L || px > V.L + V.PW) { tip.hidden = true; if (g) g.setAttribute("visibility", "hidden"); return; }
+      const lam = V.l1 + (px - V.L) / V.PW * (V.l2 - V.l1), bl = last.p.blaze_nm, ef = [0, 1, 2].map((m) => 100 * Core.blazeEff(m, lam, bl));
+      if (g) { g.setAttribute("visibility", "visible"); g.setAttribute("transform", `translate(${px.toFixed(1)} 0)`); g.querySelectorAll("circle").forEach((c, i) => c.setAttribute("cy", V.Y(ef[i]).toFixed(1))); }
+      tip.innerHTML = `<b>${lam.toFixed(0)} nm</b><br><span class="k" style="background:var(--s1)"></span>1次 <b>${ef[1].toFixed(1)} %</b><br><span class="k" style="background:var(--s0)"></span>0次 <b>${ef[0].toFixed(1)} %</b><br><span class="k" style="background:var(--s2)"></span>2次 <b>${ef[2].toFixed(1)} %</b>`;
+      tip.hidden = false; const tw = tip.offsetWidth; tip.style.left = (px + 14 + tw > V.W ? px - tw - 14 : px + 14) + "px"; tip.style.top = (V.T + 4) + "px";
+    });
+    host.addEventListener("pointerleave", () => { tip.hidden = true; const g = $("#exh"); if (g) g.setAttribute("visibility", "hidden"); });
+  }
+  const { p } = last, host = $("#eff"), W = Math.max(300, host.clientWidth), H = 300, L = 44, R = 50, T = 12, B = 38, PW = W - L - R, PH = H - T - B;
+  const l1 = p.lam_min_nm, l2 = p.lam_max_nm, X = (l) => L + (l - l1) / (l2 - l1) * PW, Y = (v) => T + (105 - v) / 105 * PH, n1 = (x) => x.toFixed(1);
+  const c = { fg: css("--fg"), mu: css("--muted"), ln: css("--line"), card: css("--card"), s: [css("--s0"), css("--s1"), css("--s2")], band: css("--band") };
+  effView = { L, PW, T, PH, l1, l2, W, Y };
+  let o = `<rect width="${W}" height="${H}" fill="${c.card}"/>`;
+  MOLECULAR_BANDS.forEach(([, la, lb], i) => { if (state.bands[i] && lb >= l1 && la <= l2) o += `<rect x="${n1(X(Math.max(la, l1)))}" y="${T}" width="${n1(X(Math.min(lb, l2)) - X(Math.max(la, l1)))}" height="${PH}" fill="${c.band}" opacity=".14"/>`; });
+  for (const v of [0, 25, 50, 75, 100]) o += `<line x1="${L}" x2="${L + PW}" y1="${n1(Y(v))}" y2="${n1(Y(v))}" stroke="${c.ln}" stroke-width="1"/><text x="${L - 6}" y="${n1(Y(v) + 3.5)}" text-anchor="end">${v}</text>`;
+  const st = niceStep(l2 - l1, W < 560 ? 5 : 9);
+  for (let l = Math.ceil(l1 / st) * st; l <= l2 + 1e-9; l += st) o += `<line x1="${n1(X(l))}" x2="${n1(X(l))}" y1="${T + PH}" y2="${T + PH + 4}" stroke="${c.mu}"/><text x="${n1(X(l))}" y="${T + PH + 16}" text-anchor="middle">${l}</text>`;
+  o += `<text x="${L + PW}" y="${H - 5}" text-anchor="end">波長 [nm]</text><text x="11" y="${T + PH / 2}" text-anchor="middle" transform="rotate(-90 11 ${T + PH / 2})">相対効率 [%]</text>`;
+  METEOR_LINES.forEach(([name, lam, grp], i) => { if (state.lines[i] && lam >= l1 && lam <= l2) o += `<line x1="${n1(X(lam))}" x2="${n1(X(lam))}" y1="${T}" y2="${T + PH}" stroke="${GROUP_COLORS[grp] || c.fg}" stroke-width="1" opacity=".6"><title>${esc(name)} ${lam.toFixed(1)} nm</title></line>`; });
+  if (p.blaze_nm >= l1 && p.blaze_nm <= l2) {
+    const bx = X(p.blaze_nm), end = bx + 110 > L + PW;
+    o += `<line x1="${n1(bx)}" x2="${n1(bx)}" y1="${T}" y2="${T + PH}" stroke="${c.mu}" stroke-width="1.2" stroke-dasharray="2 3"/><text x="${n1(bx + (end ? -5 : 5))}" y="${T + 11}" text-anchor="${end ? "end" : "start"}" fill="${c.fg}" stroke="${c.card}" stroke-width="3" paint-order="stroke">ブレーズ波長 ${p.blaze_nm.toFixed(0)} nm</text>`;
+  }
+  const ends = [];
+  for (const m of [0, 2, 1]) {
+    let d = ""; const N = 240;
+    for (let i = 0; i <= N; i++) { const l = l1 + (l2 - l1) * i / N; d += (i ? "L" : "M") + n1(X(l)) + " " + n1(Y(100 * Core.blazeEff(m, l, p.blaze_nm))); }
+    o += `<path d="${d}" fill="none" stroke="${c.s[m]}" stroke-width="2" stroke-linejoin="round"${m === 2 ? ' stroke-dasharray="6 4"' : ""}/>`;
+    ends.push({ m, y: Y(100 * Core.blazeEff(m, l2, p.blaze_nm)) });
+  }
+  ends.sort((a, b) => a.y - b.y); for (let i = 1; i < ends.length; i++) if (ends[i].y - ends[i - 1].y < 13) ends[i].ly = (ends[i - 1].ly ?? ends[i - 1].y) + 13;
+  for (const e of ends) o += `<circle cx="${n1(L + PW)}" cy="${n1(e.y)}" r="3.5" fill="${c.s[e.m]}" stroke="${c.card}" stroke-width="1.5"/><text x="${L + PW + 8}" y="${n1((e.ly ?? e.y) + 4)}" fill="${c.fg}" font-size="11.5">m=${e.m}</text>`;
+  o += `<g id="exh" visibility="hidden"><line x1="0" x2="0" y1="${T}" y2="${T + PH}" stroke="${c.fg}" stroke-width="1" opacity=".5"/>` + [0, 1, 2].map((m) => `<circle cx="0" cy="0" r="4" fill="${c.s[m]}" stroke="${c.card}" stroke-width="2"/>`).join("") + `</g>`;
+  $("#effSvg").innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family='${FONT}' font-size="11" fill="${c.mu}" role="img" aria-label="回折次数ごとのブレーズ効率曲線">${o}</svg>`;
+}
+
+function lineRows() {
+  const { p, r } = last, pix = p.pix_um / 1000, w = r.sensor_w_mm, alpha = r.alpha_deg * Math.PI / 180, rows = [];
+  METEOR_LINES.forEach(([name, lam, grp, rank], i) => {
+    if (!state.lines[i]) return;
+    const th = Core.gratingAngle(1, p.g_per_mm, lam, alpha), row = { name, lam, grp, rank, th, inBand: lam >= p.lam_min_nm && lam <= p.lam_max_nm, eff: Core.blazeEff(1, lam, p.blaze_nm) };
+    if (th !== null) { row.x = p.f_mm * Math.tan(th); row.col = (row.x + w / 2) / pix; row.on = Math.abs(row.x) <= w / 2; row.disp = pix / (p.f_mm * p.g_per_mm * 1e-6 / Math.cos(th) ** 3); }
+    rows.push(row);
+  });
+  const prop = rows.filter((q) => q.th !== null).sort((a, b) => a.x - b.x);
+  prop.forEach((q, i) => { const a = i > 0 ? q.x - prop[i - 1].x : Infinity, b = i < prop.length - 1 ? prop[i + 1].x - q.x : Infinity; q.gap = Math.min(a, b) / pix; });
+  return rows.sort((a, b) => a.lam - b.lam);
+}
+function tabLines() {
+  const { p, r } = last, rows = lineRows(), st = (c, t) => `<span class="st ${c}">${t}</span>`;
+  let h = `<p class="hint" style="margin:0 0 8px">左のレールで選択中の輝線が、現在の0次位置 (${sg(p.x0_frac)}) でセンサーのどこに写るかを一覧します。隣線との間隔が 2 px 未満の組は 2 画素サンプリングでは分離できません。</p>`;
+  if (!rows.length) h += `<div class="empty">輝線が選択されていません。左の「流星スペクトル輝線」で表示する輝線を選んでください。</div>`;
+  else {
+    h += `<div class="scroll"><table><thead><tr><th>輝線</th><th>波長 [nm]</th><th>位置 [mm]</th><th>画素列 [px]</th><th>分散 [nm/px]</th><th>1次効率 [%]</th><th>隣線との間隔 [px]</th><th>判定</th></tr></thead><tbody>`;
+    for (const q of rows) {
+      let s;
+      if (q.th === null) s = st("crit", "× 伝搬不可");
+      else if (!q.on) s = st("warn", "! センサー外");
+      else if (!q.inBand) s = st("mute", "– 評価範囲外");
+      else if (q.gap < 2) s = st("warn", "! 隣線と分離不可");
+      else s = st("good", "✓ センサー内");
+      h += `<tr class="${q.th !== null && q.on ? "" : "dim"}"><td><span class="sw" style="background:${GROUP_COLORS[q.grp] || "#888"}"></span> ${RANK[q.rank]} ${esc(q.name)}</td><td class="num">${q.lam.toFixed(1)}</td>`
+        + (q.th === null ? `<td class="num">—</td><td class="num">—</td><td class="num">—</td>` : `<td class="num">${sg(q.x)}</td><td class="num">${q.on ? q.col.toFixed(0) : "—"}</td><td class="num">${q.disp.toFixed(3)}</td>`)
+        + `<td class="num">${(100 * q.eff).toFixed(0)}</td><td class="num">${q.gap === undefined || !isFinite(q.gap) ? "—" : q.gap.toFixed(1)}</td><td class="l">${s}</td></tr>`;
+    }
+    h += `</tbody></table></div>`;
+  }
+  const alpha = r.alpha_deg * Math.PI / 180, bandRows = [];
+  MOLECULAR_BANDS.forEach(([name, la, lb], j) => {
+    if (!state.bands[j]) return;
+    const ta = Core.gratingAngle(1, p.g_per_mm, la, alpha), tb = Core.gratingAngle(1, p.g_per_mm, lb, alpha);
+    let pos = "—", s = st("crit", "× 伝搬不可");
+    if (ta !== null && tb !== null) {
+      const xa = p.f_mm * Math.tan(ta), xb = p.f_mm * Math.tan(tb), hw = r.sensor_w_mm / 2;
+      pos = `${sg(xa)} 〜 ${sg(xb)}`;
+      s = xb <= hw && xa >= -hw ? st("good", "✓ センサー内") : xa > hw || xb < -hw ? st("warn", "! センサー外") : st("warn", "! 一部センサー外");
+    }
+    bandRows.push(`<tr><td><span class="sw" style="background:var(--band)"></span> ${esc(name)}</td><td class="num">${la.toFixed(0)}–${lb.toFixed(0)}</td><td class="num">${pos}</td><td class="l">${s}</td></tr>`);
+  });
+  if (bandRows.length) h += `<div class="scroll" style="margin-top:14px"><table><thead><tr><th>分子バンド</th><th>波長範囲 [nm]</th><th>位置 [mm]</th><th>判定</th></tr></thead><tbody>${bandRows.join("")}</tbody></table></div>`;
+  $("#panel").innerHTML = h;
+}
+
+function reportText() { return "流星撮像・分光観測システム設計レポート\n" + "=".repeat(50) + "\n" + Core.buildReport(last.p, last.r); }
+function tabReport() {
+  $("#panel").innerHTML = `<div class="rowbtns" style="margin-bottom:8px"><button class="btn sm" id="btnCopyRep">レポートをコピー</button><button class="btn sm local-only" id="btnSaveRep">レポート保存 (.txt)</button></div>
+    <pre class="report" id="repPre">${esc(Core.buildReport(last.p, last.r))}</pre>
+    <ul class="notes"><li>表示は「0次像がスライダー位置に写った流星」に対する評価です。流星の出現位置が変わるとスペクトルの位置と長さも変わります。</li>
+    <li>分散方向はセンサー水平方向と仮定しています。歪曲収差・周辺減光・非点収差は考慮していません。</li>
+    <li>2 画素サンプリングの R は上限値です。実際の分解能は輝跡幅 (シーイング、デフォーカス、移動によるブレ) で下がります。</li>
+    <li>プリセットのセンサー諸元とグレーティング設計波長は代表値です。実機の仕様書で確認してください。</li></ul>`;
+  gateLocal();
+  $("#btnCopyRep").addEventListener("click", () => copyText(reportText(), $("#repPre")));
+  const b = $("#btnSaveRep"); if (b) b.addEventListener("click", () => download("meteor_spec_report.txt", new Blob([reportText()], { type: "text/plain;charset=utf-8" })));
+}
+
+function scenarioName(p) {
+  const short = (presets, keys) => { const n = (presets.find(([, v]) => v && keys.every((k, i) => Math.abs(p[k] - v[i]) < 1e-9)) || [null])[0]; return n ? n.split(" (")[0].replace(/\s+/g, " ") : null; };
+  return [short(Core.SENSOR_PRESETS, ["pix_um", "nx", "ny"]) || `${p.nx}×${p.ny} px / ${p.pix_um} µm`, `${fmtNum(p.f_mm)} mm F${fmtNum(p.fnum)}`, `${fmtNum(p.g_per_mm)} 本/mm`, `0次 ${sg(p.x0_frac)}`].join(" · ");
+}
+function addScenario() {
+  if (!last) return;
+  state.scenarios.push({ name: scenarioName(last.p), p: { ...last.p } });
+  state.tab = "cmp"; renderTab(); save(); toast("比較表に追加しました");
+}
+$("#btnAddCmp").addEventListener("click", addScenario);
+function tabCmp() {
+  const row = (name, p, act, cur) => {
+    const r = Core.compute(p), d = r.dispersion_nm_per_px[500];
+    const s = r.frac_spec_fov === null ? `<span class="st crit">× 伝搬不可</span>` : r.fits_on_sensor ? `<span class="st good">✓ センサー内</span>` : `<span class="st warn">! 一部センサー外</span>`;
+    return `<tr><td>${cur ? "<b>現在の構成</b><br>" : ""}<span style="white-space:normal">${esc(name)}</span></td><td class="num">${r.fov_h_deg.toFixed(1)}° × ${r.fov_v_deg.toFixed(1)}°</td><td class="num">${r.scale_arcsec.toFixed(1)}</td>
+      <td class="num">${d ? d.toFixed(3) : "—"}</td><td class="num">${r.R_2px_550 ? r.R_2px_550.toFixed(0) : "—"}</td><td class="num">${r.spec_len_px === null ? "—" : r.spec_len_px.toFixed(0)}</td>
+      <td class="num">${(100 * r.band_captured_frac).toFixed(1)}</td><td class="num">${(100 * r.eff_1st_at_center).toFixed(0)}</td><td class="l">${s}</td><td class="l">${act}</td></tr>`;
+  };
+  let h = `<p class="hint" style="margin:0 0 8px">機材の組み合わせを保存して、同じ指標で横並びに比べられます。「適用」で保存した構成を入力欄に戻します。</p>
+    <div class="scroll"><table><thead><tr><th>構成</th><th>視野角 水平×垂直</th><th>秒角/px</th><th>nm/px (500 nm)</th><th>R (550 nm)</th><th>1次長 [px]</th><th>捕捉率 [%]</th><th>1次効率 [%]</th><th>収まり</th><th></th></tr></thead><tbody>`;
+  h += row(scenarioName(last.p), last.p, `<button class="btn sm" data-cmp="add">＋ 追加</button>`, true);
+  state.scenarios.forEach((c, i) => { h += row(c.name, c.p, `<button class="btn sm" data-cmp="use" data-i="${i}">適用</button> <button class="btn sm" data-cmp="del" data-i="${i}" aria-label="この構成を削除">削除</button>`, false); });
+  h += `</tbody></table></div>`;
+  if (!state.scenarios.length) h += `<div class="empty">まだ比較対象がありません。機材を変える前に「＋ 追加」で現在の構成を残しておくと、変更後の構成と比べられます。</div>`;
+  const panel = $("#panel"); panel.innerHTML = h;
+  panel.querySelectorAll("[data-cmp]").forEach((b) => b.addEventListener("click", () => {
+    const i = +b.dataset.i, a = b.dataset.cmp;
+    if (a === "add") return addScenario();
+    if (a === "del") { state.scenarios.splice(i, 1); renderTab(); save(); return; }
+    const c = state.scenarios[i]; for (const k of Object.keys(DEFAULT_V)) state.v[k] = c.p[k]; state.x0 = c.p.x0_frac; update(); toast("構成を適用しました");
+  }));
+}
+
+/* ---------- 保存・読込・テーマ ---------- */
+let toastT = 0;
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, 2200); }
+function download(name, blob) { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 3000); toast(`${name} を保存しました`); }
+function copyText(text, fallbackEl) {
+  const sel = () => { const rg = document.createRange(); rg.selectNodeContents(fallbackEl); const s = getSelection(); s.removeAllRanges(); s.addRange(rg); toast("コピーできないため全文を選択しました。Ctrl/⌘+C でコピーしてください"); };
+  try { navigator.clipboard.writeText(text).then(() => toast("コピーしました"), sel); } catch (e) { sel(); }
+}
+function savePng(svg, name) {
+  if (!svg) return;
+  const img = new Image(), w = svg.width.baseVal.value, h = svg.height.baseVal.value;
+  img.onload = () => { const c = document.createElement("canvas"); c.width = w * 2; c.height = h * 2; c.getContext("2d").drawImage(img, 0, 0, c.width, c.height); c.toBlob((b) => download(name, b), "image/png"); };
+  img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(new XMLSerializer().serializeToString(svg));
+}
+function gateLocal() { document.querySelectorAll(".local-only").forEach((el) => { el.hidden = !isLocal; }); }
+$("#btnPngStage").addEventListener("click", () => savePng($("#stageSvg svg"), "meteor_spec_layout.png"));
+$("#btnFit").addEventListener("click", () => { state.fitAll = !state.fitAll; update(); });
+$("#btnReset").addEventListener("click", () => { Object.assign(state, defaults()); update(); toast("初期値に戻しました"); });
+$("#btnSave").addEventListener("click", () => download("meteor_spec_config.json", new Blob([JSON.stringify({ app: "meteor-spec-planner", version: 1, v: state.v, x0: state.x0, lines: state.lines, bands: state.bands }, null, 2)], { type: "application/json" })));
+$("#btnLoad").addEventListener("click", () => $("#fileIn").click());
+$("#fileIn").addEventListener("change", (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  const rd = new FileReader();
+  rd.onload = () => { try { const s = JSON.parse(rd.result); if (!s || s.app !== "meteor-spec-planner") throw 0; applyConfig(s, false); update(); toast("構成を読み込みました"); } catch (err) { toast("このファイルは読み込めません。「構成を保存」で作った .json を選んでください"); } };
+  rd.readAsText(f); e.target.value = "";
+});
+function applyTheme() {
+  if (isLocal) { if (state.theme) document.documentElement.dataset.theme = state.theme; else delete document.documentElement.dataset.theme; }
+  $("#btnTheme").textContent = "テーマ: " + ({ light: "ライト", dark: "ダーク" }[state.theme] || "自動");
+}
+$("#btnTheme").addEventListener("click", () => { state.theme = state.theme === null ? "light" : state.theme === "light" ? "dark" : null; applyTheme(); if (last) renderTab(); save(); });
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (last) renderTab(); });
+new MutationObserver(() => { if (last) renderTab(); }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+let rq = 0;
+new ResizeObserver(() => { cancelAnimationFrame(rq); rq = requestAnimationFrame(() => { if (last && !dragging) { renderStage(); if (state.tab === "eff") tabEff(); } }); }).observe($("#stage"));
+gateLocal(); applyTheme(); update();
+})();
+</script>

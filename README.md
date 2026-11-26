@@ -7,6 +7,7 @@
 | 公開物 | パス | 内容 |
 |---|---|---|
 | **NU-SORA 観測ポータル デモ版** | [`nu-sora/`](nu-sora/) | 日本大学 全学屋上観測網「ソラ」（Nihon University Sky Observation and Resilience Array）の観測ポータル。全国 14 局の火球・スペースデブリ再突入・インフラサウンド・線状降水帯・気象／熱中症・夜空の明るさを統合表示する |
+| **分光観測プランナー** | [`spec-planner/`](spec-planner/) | 対物グレーティング分光の機材設計ツール（Spectroscopic Observation Planner）。センサー・レンズ・グレーティングの組み合わせから、波長分散・センサー上のスペクトル配置・ブレーズ効率・輝線と分子バンドの捕捉可否を計算し、機材構成を比較する |
 
 > **表示される観測値・イベントはすべて模擬データであり、実際の観測結果ではありません。**
 > 観測局の配置・機材構成・解析手法は検討中の計画に基づきます。
@@ -23,6 +24,7 @@ Organization `nu-sx` 配下の `<org>.github.io` なので、**組織サイト**
 
 - サイト表紙 … `https://nu-sx.github.io/`
 - NU-SORA デモ … `https://nu-sx.github.io/nu-sora/`
+- 分光観測プランナー … `https://nu-sx.github.io/spec-planner/`
 
 ## デプロイ
 
@@ -55,6 +57,7 @@ Actions を経由せず `main` ブランチの内容をそのまま配信する�
 python3 -m http.server 8000
 # → http://127.0.0.1:8000/          サイト表紙
 # → http://127.0.0.1:8000/nu-sora/  NU-SORA デモ
+# → http://127.0.0.1:8000/spec-planner/  分光観測プランナー
 ```
 
 `nu-sora/index.html` はビルド不要で、ファイルを直接開いても動作する。
